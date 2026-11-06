@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant Documentaire Interne — Système RAG</title>
+<meta name="description" content="Système RAG local pour interroger en langage naturel les documents internes d'une entreprise, avec réponses sourcées. Projet de stage 2026 — TLILI Mohamed Aziz.">
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --text: #1c1917; --muted: #57534e;
+    --border: #e7e5e4; --accent: #0f766e; --accent-soft: #ccfbf1; --code: #f5f5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --surface: #1c1917; --text: #f5f5f4; --muted: #a8a29e;
+      --border: #292524; --accent: #2dd4bf; --accent-soft: #134e4a; --code: #292524;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 72px 0 48px; border-bottom: 1px solid var(--border); }
+  .tag {
+    display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -.02em; }
+  .lead { font-size: 19px; color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px;
+    border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px;
+    border: 1px solid var(--border); color: var(--text); background: var(--surface);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #042f2e; } }
+  .meta { margin-top: 28px; font-size: 14px; color: var(--muted); }
+  section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 26px; margin: 0 0 8px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .shot {
+    margin: 0 0 28px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot figcaption { padding: 12px 16px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--border); }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+  .step {
+    flex: 1 1 150px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; font-size: 14px;
+  }
+  .step b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .step span { color: var(--muted); }
+  .arrow { align-self: center; color: var(--muted); font-size: 20px; }
+  .metric .value { font-size: 36px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .metric .bar { height: 6px; border-radius: 3px; background: var(--border); margin: 12px 0 10px; overflow: hidden; }
+  .metric .bar i { display: block; height: 100%; background: var(--accent); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  th { width: 34%; color: var(--muted); font-weight: 600; }
+  tr:last-child th, tr:last-child td { border-bottom: 0; }
+  pre {
+    background: var(--code); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; overflow-x: auto; font-size: 14px; line-height: 1.55;
+  }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+  .note {
+    background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; font-size: 15px; margin-top: 20px;
+  }
+  footer { padding: 36px 0 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tag">Projet de stage · Data Science · 2026</div>
+    <h1>Assistant documentaire interne à réponses sourcées</h1>
+    <p class="lead">
+      Un système <strong>RAG</strong> (Retrieval-Augmented Generation) qui permet d'interroger en langage naturel
+      les documents d'une entreprise — factures, bons de commande, rapports — et d'obtenir des réponses
+      générées par un LLM <strong>local</strong>, accompagnées de leurs sources.
+    </p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/NOT4TODAY1/Summer-internship-2026">Voir le code sur GitHub</a>
+      <a class="btn" href="assets/rapport-technique.pdf">Lire le rapport (PDF)</a>
+      <a class="btn" href="#demarrer">Lancer en local</a>
+    </div>
+    <p class="meta">Réalisé par <strong>TLILI Mohamed Aziz</strong> · Encadrante : Mme ENNINE Hanene · Année 2025 / 2026</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Démonstration</h2>
+    <p class="sub">Interface Streamlit connectée à l'API FastAPI, avec le modèle Mistral exécuté via Ollama.</p>
+    <figure class="shot">
+      <img src="assets/ui-reponse.png" alt="Réponse de l'assistant listant les bons de commande d'une cliente, avec les fichiers sources cités" loading="lazy">
+      <figcaption>Question en français sur les bons de commande d'une cliente : l'assistant répond à partir de 4 extraits et cite les fichiers PDF d'origine.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="assets/ui-accueil.png" alt="Écran d'accueil de l'assistant avec le statut du système" loading="lazy">
+      <figcaption>Écran d'accueil : statut de l'API, nombre de chunks indexés, modèle et embeddings utilisés.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Fonctionnement</h2>
+    <p class="sub">Deux phases découplées : l'indexation hors ligne, puis l'interrogation en temps réel.</p>
+    <div class="flow">
+      <div class="step"><b>Documents</b><span>PDF, DOCX, TXT, MD</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>Découpage</b><span>chunks de 1000 car., chevauchement 150</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>Embeddings</b><span>sentence-transformers, sur CPU</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>ChromaDB</b><span>index vectoriel persistant</span></div>
+    </div>
+    <div class="flow" style="margin-top:8px">
+      <div class="step"><b>Question</b><span>interface Streamlit</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>Recherche</b><span>top-k par similarité</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>LLM local</b><span>Mistral via Ollama, prompt anti-hallucination</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>Réponse sourcée</b><span>API FastAPI <code>/query</code></span></div>
+    </div>
+    <div class="grid" style="margin-top:28px">
+      <div class="card"><h3>100 % local</h3><p>Aucune donnée ne quitte l'infrastructure : pas d'API externe ni de clé à fournir.</p></div>
+      <div class="card"><h3>Réponses traçables</h3><p>Chaque réponse affiche les extraits utilisés et leur score de pertinence.</p></div>
+      <div class="card"><h3>Gratuit</h3><p>Modèles open source (Mistral, LLaMA) et embeddings locaux, sans coût récurrent.</p></div>
+      <div class="card"><h3>Découplé</h3><p>Le moteur RAG est exposé par une API : n'importe quelle interface peut s'y brancher.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Évaluation (RAGAS)</h2>
+    <p class="sub">Scores mesurés sur le jeu de test annoté <code>data/eval/testset.csv</code> (de 0 à 1, plus c'est haut mieux c'est).</p>
+    <div class="grid">
+      <div class="card metric">
+        <div class="value">0,83</div><div class="bar"><i style="width:83%"></i></div>
+        <h3>Faithfulness</h3><p>La réponse est fidèle au contexte récupéré (mesure des hallucinations).</p>
+      </div>
+      <div class="card metric">
+        <div class="value">0,89</div><div class="bar"><i style="width:89%"></i></div>
+        <h3>Answer relevancy</h3><p>La réponse traite bien la question posée.</p>
+      </div>
+      <div class="card metric">
+        <div class="value">0,94</div><div class="bar"><i style="width:94%"></i></div>
+        <h3>Context precision</h3><p>Les extraits récupérés sont pertinents.</p>
+      </div>
+      <div class="card metric">
+        <div class="value">1,00</div><div class="bar"><i style="width:100%"></i></div>
+        <h3>Context recall</h3><p>Toute l'information nécessaire a été retrouvée.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Stack technique</h2>
+    <table>
+      <tr><th>Langage</th><td>Python 3.11+</td></tr>
+      <tr><th>Orchestration RAG</th><td>LangChain</td></tr>
+      <tr><th>LLM</th><td>Ollama (Mistral 7B / LLaMA 3)</td></tr>
+      <tr><th>Embeddings</th><td>sentence-transformers (multilingue MiniLM)</td></tr>
+      <tr><th>Base vectorielle</th><td>ChromaDB</td></tr>
+      <tr><th>Évaluation</th><td>RAGAS</td></tr>
+      <tr><th>API / Interface</th><td>FastAPI · Streamlit</td></tr>
+      <tr><th>Déploiement</th><td>Docker / docker-compose</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="demarrer">
+  <div class="wrap">
+    <h2>Lancer le projet en local</h2>
+    <p class="sub">Prérequis : Python 3.11+ et <a href="https://ollama.com">Ollama</a> installé.</p>
+<pre><code>git clone https://github.com/NOT4TODAY1/Summer-internship-2026.git
+cd Summer-internship-2026
+pip install -r requirements.txt
+ollama pull mistral
+
+cp .env.example .env
+python scripts/ingest_documents.py --source data/raw --reset
+
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000   # terminal 1
+streamlit run src/app/streamlit_app.py                 # terminal 2 → http://localhost:8501</code></pre>
+    <p>Ou avec Docker : <code>docker compose up --build</code> puis <code>docker exec -it rag-ollama ollama pull mistral</code>.</p>
+    <div class="note">
+      Cette page est une présentation statique du projet. L'assistant lui-même nécessite un serveur Python
+      et un LLM local (Ollama) : il s'exécute sur votre machine ou sur un serveur dédié.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    TLILI Mohamed Aziz · Stage 2026 ·
+    <a href="https://github.com/NOT4TODAY1/Summer-internship-2026">github.com/NOT4TODAY1/Summer-internship-2026</a> ·
+    Données : <a href="https://www.kaggle.com/datasets/ayoubcherguelaine/company-documents-dataset">Company Documents Dataset (Kaggle)</a>
+  </div>
+</footer>
+
+</body>
+</html>
