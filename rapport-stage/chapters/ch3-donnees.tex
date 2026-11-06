@@ -1,0 +1,314 @@
+% ============================================================
+%  Chapitre 3 — Compréhension et préparation des données
+% ============================================================
+\chapter{Compréhension et préparation des données}
+\label{ch:donnees}
+
+\section{Collecte des données}
+
+Le corpus utilisé provient du jeu de données public \emph{Company Documents
+Dataset}, disponible sur la plateforme Kaggle. Il rassemble des documents
+d'entreprise générés à partir de la base de démonstration \emph{Northwind}, un
+jeu de données commercial classique décrivant l'activité d'un distributeur
+agroalimentaire fictif : commandes, clients, produits, fournisseurs et
+employés.
+
+Ce corpus a été retenu pour trois raisons. Il est \textbf{librement
+redistribuable}, ce qui autorise sa publication dans un dépôt de code. Il est
+\textbf{réaliste} dans sa structure : documents hétérogènes, générés
+automatiquement à partir d'un système d'information, tels qu'on en trouve
+effectivement dans les archives d'une entreprise. Il est enfin d'un
+\textbf{volume significatif} --- plusieurs milliers de fichiers --- permettant
+de valider le passage à l'échelle du pipeline d'ingestion.
+
+Les fichiers, tous au format PDF, ont été déposés dans le répertoire
+\texttt{data/raw/} du projet, qui constitue le point d'entrée unique du pipeline
+d'ingestion.
+
+\section{Description des données}
+
+\subsection{Composition du corpus}
+
+Le corpus rassemble \textbf{2\,676 fichiers PDF} répartis en quatre familles
+documentaires, présentées au tableau~\ref{tab:corpus}.
+
+\begin{table}[htbp]
+\centering
+\caption{Composition du corpus documentaire}
+\label{tab:corpus}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}rrX@{}}
+\toprule
+\textbf{Famille} & \textbf{Fichiers} & \textbf{Part} & \textbf{Contenu} \\
+\midrule
+Factures & 830 & 31,0~\% &
+Identifiant de commande, coordonnées client, lignes de produits, montant total \\
+Bons de commande & 830 & 31,0~\% &
+Identifiant, date, nom du client, produits commandés \\
+Commandes & 809 & 30,2~\% &
+Détails d'expédition, client, employé, transporteur, lignes de produits \\
+Rapports de stock & 207 & 7,8~\% &
+État mensuel des stocks par catégorie et par produit \\
+\midrule
+\textbf{Total} & \textbf{2\,676} & \textbf{100~\%} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Analyse statistique}
+
+Une analyse systématique de la longueur du texte extrait a été menée sur
+l'intégralité du corpus. Ses résultats figurent au tableau~\ref{tab:stats}.
+
+\begin{table}[htbp]
+\centering
+\caption{Statistiques de longueur du texte extrait (en caractères)}
+\label{tab:stats}
+\small
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+\textbf{Famille} & \textbf{Fichiers} & \textbf{Moyenne} & \textbf{Médiane} &
+\textbf{Min} & \textbf{Max} & \textbf{Pages} \\
+\midrule
+Factures            & 830 & 387 & 384 & 315 & 1\,029 & 1,00 \\
+Bons de commande    & 830 & 210 & 207 & 152 & 820    & 1,00 \\
+Commandes           & 809 & 911 & 856 & 609 & 1\,494 & 1,84 \\
+Rapports de stock   & 207 & 475 & 302 & 141 & 2\,592 & 1,00 \\
+\midrule
+\textbf{Ensemble}   & \textbf{2\,676} & \textbf{498} & --- & 141 & 2\,592 & 1,25 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trois enseignements se dégagent de ces mesures.
+
+\textbf{Le corpus est de volume textuel modeste.} L'ensemble représente
+1\,332\,652 caractères, soit environ 1,3~Mo de texte brut pour 2\,676 fichiers.
+La taille moyenne d'un document est de 498 caractères, ce qui correspond à un
+paragraphe.
+
+\textbf{L'extraction textuelle est intégralement réussie.} Aucun des 2\,676
+fichiers n'a produit un texte vide. Cette observation est importante : elle
+signifie que tous les PDF du corpus sont \emph{nativement textuels} et non des
+images numérisées. Aucune reconnaissance optique de caractères (OCR) n'a donc
+été nécessaire, ce qui aurait considérablement alourdi le pipeline. Cette
+propriété favorable ne serait vraisemblablement pas vérifiée sur un corpus
+d'entreprise réel, qui comporte souvent des documents scannés.
+
+\textbf{La dispersion des longueurs est forte entre familles.} Un bon de
+commande compte en moyenne 210 caractères, une commande 911, soit un rapport de
+un à quatre. Les rapports de stock présentent la plus forte variance
+(médiane 302, maximum 2\,592) : certains mois ne comptent que quelques
+références en stock, d'autres plusieurs dizaines. Cette hétérogénéité a une
+conséquence directe sur la stratégie de découpage, analysée à la
+section~\ref{sec:chunking}.
+
+\section{Exploration des données}
+
+\subsection{Structure des documents}
+
+L'examen du texte extrait révèle que les quatre familles suivent chacune un
+gabarit régulier, hérité de leur génération automatique. Le
+listing~\ref{lst:facture} présente une facture représentative.
+
+\begin{lstlisting}[style=plain,caption={Texte extrait d'une facture (\texttt{invoice\_10248.pdf})},label={lst:facture}]
+Invoice
+Order ID: 10248
+Customer ID: VINET
+Order Date: 2016-07-04
+Customer Details:
+Contact Name: Paul Henriot
+Address: 59 rue de l'Abbaye
+City: Reims
+Postal Code: 51100
+Country: France
+Phone: 26.47.15.10
+Product Details:
+Product ID Product Name Quantity Unit Price
+11 Queso Cabrales 12 14.0
+42 Singaporean Hokkien Fried Mee 10 9.8
+72 Mozzarella di Giovanni 5 34.8
+  TotalPrice 440.0
+\end{lstlisting}
+
+Un rapport de stock adopte une structure tabulaire différente, où chaque cellule
+est extraite sur une ligne distincte :
+
+\begin{lstlisting}[style=plain,caption={Extrait d'un rapport de stock (\texttt{StockReport\_2016-07.pdf})}]
+Stock Report for 2016-07
+Category / Product / Units Sold / Units in Stock / Unit Price
+Beverages      Chang                 105   17   19
+Beverages      Chartreuse verte       48   69   18
+Condiments     Chef Anton's Gumbo Mix 77    0    21.35
+Confections    Pavlova                95   29   17.45
+\end{lstlisting}
+
+\subsection{Nature transactionnelle du corpus et limite identifiée}
+\label{sec:limite-corpus}
+
+L'exploration met en évidence une caractéristique déterminante du corpus, qu'il
+importe d'exposer clairement car elle conditionne l'interprétation des résultats
+du chapitre~\ref{ch:evaluation}.
+
+\textbf{Les 2\,676 documents sont exclusivement de nature transactionnelle.} Il
+s'agit d'enregistrements structurés --- factures, bons de commande, commandes,
+états de stock --- c'est-à-dire, fonctionnellement, d'une base de données
+relationnelle exportée sous forme de fichiers PDF. Le corpus ne contient
+\emph{aucune} procédure, \emph{aucun} manuel technique, \emph{aucune} note
+d'organisation ni base de connaissances rédigée.
+
+Cette composition a une conséquence sur le type de questions auxquelles le
+système peut répondre. Il traite naturellement les interrogations factuelles
+portant sur un enregistrement précis --- « quels produits contient la commande
+10590 ? », « quel est le montant total de la facture 10248 ? » --- mais il ne
+peut évidemment pas répondre à une question procédurale telle que « quelle est
+la procédure de remboursement des notes de frais ? », faute de document la
+décrivant.
+
+\begin{encadre}
+\textbf{Analyse critique.} Une architecture RAG donne son plein rendement sur
+des documents \emph{rédigés}, où l'information est diffuse dans un texte suivi
+et où la recherche sémantique apporte une valeur que la recherche exacte ne
+peut fournir. Sur des enregistrements structurés, une requête SQL sur la base
+d'origine serait plus rapide, plus exacte et moins coûteuse. Le corpus retenu
+permet donc de \emph{valider techniquement} l'ensemble du pipeline --- ingestion,
+vectorisation, recherche, génération, traçabilité --- mais il sous-exploite
+l'intérêt propre de l'approche. L'enrichissement du corpus par des documents
+rédigés constitue la première perspective d'amélioration retenue en conclusion.
+\end{encadre}
+
+\section{Préparation des données}
+
+\subsection{Chargement et normalisation}
+
+Le module de chargement prend en charge cinq formats --- PDF, DOCX, TXT, MD et
+CSV --- et les normalise en objets \texttt{Document} de LangChain. Bien que le
+corpus actuel soit exclusivement au format PDF, cette polyvalence a été
+implémentée dès l'origine afin que le système accepte sans modification un
+corpus d'entreprise réel, nécessairement hétérogène.
+
+Chaque document est enrichi de quatre métadonnées, dont dépend directement la
+capacité du système à citer ses sources :
+
+\begin{lstlisting}[style=python,caption={Enrichissement en métadonnées (\texttt{src/ingestion/loader.py})}]
+metadata = {
+    "source":      str(path),                          # chemin complet
+    "filename":    path.name,                          # nom affiche a l'utilisateur
+    "file_type":   ext.lstrip("."),                    # pdf, docx, txt...
+    "ingested_at": datetime.now(timezone.utc).isoformat(),
+}
+return Document(page_content=content, metadata=metadata)
+\end{lstlisting}
+
+Le chargement est \emph{tolérant aux pannes} : un fichier illisible ou dépourvu
+de texte extractible est journalisé puis ignoré, sans interrompre le traitement
+des 2\,675 autres. Sur un corpus de cette taille, l'échec global sur un seul
+fichier défectueux serait inacceptable en exploitation.
+
+\subsection{Découpage en segments}
+\label{sec:chunking}
+
+Le découpage (\eng{chunking}) est l'opération qui divise un document en segments
+de taille compatible avec la fenêtre de contexte du modèle de vectorisation. Il
+est réalisé par un \texttt{RecursiveCharacterTextSplitter} paramétré à
+1\,000 caractères par segment et 150 caractères de chevauchement.
+
+Ce découpeur est dit \emph{récursif} car il tente de couper aux frontières
+naturelles du texte, par ordre de préférence décroissant : d'abord aux sauts de
+paragraphe (\texttt{\textbackslash n\textbackslash n}), puis aux sauts de ligne,
+puis aux fins de phrase, puis aux espaces, et en dernier recours à un caractère
+arbitraire. L'objectif est de préserver au maximum l'unité sémantique de chaque
+segment.
+
+Le chevauchement de 150 caractères garantit qu'une information située à la
+frontière de deux segments reste intégralement présente dans au moins l'un des
+deux. Sans lui, une ligne de produit coupée en son milieu deviendrait
+irrécupérable pour la recherche.
+
+Chaque segment reçoit enfin un identifiant lisible reliant le segment à son
+document d'origine, indispensable à la traçabilité :
+
+\begin{lstlisting}[style=python,caption={Attribution d'un identifiant de segment (\texttt{src/ingestion/chunker.py})}]
+counters: dict[str, int] = {}
+for chunk in chunks:
+    src = chunk.metadata.get("source", "unknown")
+    counters[src] = counters.get(src, 0) + 1
+    chunk.metadata["chunk_id"] = (
+        f"{chunk.metadata.get('filename', src)}::chunk_{counters[src]}"
+    )
+\end{lstlisting}
+
+Un segment est ainsi identifié par une chaîne du type
+\texttt{invoice\_10248.pdf::chunk\_1}, directement affichable dans l'interface.
+
+\subsection{Effet réel du découpage sur ce corpus}
+
+L'ingestion des 2\,676 documents a produit \textbf{2\,929 segments}, soit un
+ratio de 1,09 segment par document. Ce chiffre appelle une analyse.
+
+La longueur moyenne d'un document étant de 498 caractères pour un paramètre
+\texttt{chunk\_size} de 1\,000, \textbf{la grande majorité des documents tient
+intégralement dans un seul segment}. Seuls 253 segments supplémentaires ont été
+produits, correspondant essentiellement aux documents de la famille
+« Commandes » --- dont la longueur moyenne de 911 caractères et le maximum de
+1\,494 dépassent le seuil --- ainsi qu'aux rapports de stock les plus fournis.
+
+\begin{encadre}
+\textbf{Conséquence méthodologique.} Sur ce corpus, le paramètre
+\texttt{chunk\_size} est \emph{quasiment inopérant} : le réglage du découpage,
+qui constitue habituellement l'un des principaux leviers d'optimisation d'un
+système RAG, n'a ici pratiquement aucun effet mesurable. Chaque segment
+correspond en pratique à un document entier. Cette situation présente un
+avantage --- le contexte transmis au modèle est toujours cohérent et complet,
+jamais tronqué --- mais elle prive l'étude d'un axe d'optimisation. Sur un corpus
+de documents rédigés, où un manuel de cinquante pages produirait plusieurs
+centaines de segments, ce paramètre redeviendrait déterminant.
+\end{encadre}
+
+\subsection{Récapitulatif du pipeline d'ingestion}
+
+Le tableau~\ref{tab:ingestion} résume la transformation opérée.
+
+\begin{table}[htbp]
+\centering
+\caption{Bilan du pipeline d'ingestion}
+\label{tab:ingestion}
+\small
+\begin{tabularx}{\textwidth}{@{}p{6.2cm}X@{}}
+\toprule
+\textbf{Étape} & \textbf{Résultat} \\
+\midrule
+Fichiers présents dans \texttt{data/raw/} & 2\,676 PDF \\
+Fichiers chargés avec succès & 2\,676 (100~\%) \\
+Fichiers sans texte extractible & 0 \\
+Volume textuel total & 1\,332\,652 caractères \\
+Longueur moyenne par document & 498 caractères \\
+Segments produits après découpage & 2\,929 \\
+Ratio segments / document & 1,09 \\
+Segments indexés dans ChromaDB & 2\,929 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+L'ingestion complète est déclenchée par une commande unique, ou par appel à
+l'\eng{endpoint} \texttt{POST /ingest} de l'API :
+
+\begin{lstlisting}[style=bash,caption={Lancement de l'ingestion}]
+python scripts/ingest_documents.py --source data/raw --reset
+\end{lstlisting}
+
+L'option \texttt{-{}-reset} supprime la collection existante avant
+ré-indexation, garantissant l'absence de doublons lors des ingestions
+successives.
+
+\section{Conclusion}
+
+Ce chapitre a décrit le corpus de 2\,676 documents, son exploration statistique
+et sa préparation. Nous avons établi que l'extraction textuelle est
+intégralement réussie, que le volume total reste modeste (1,3~Mo de texte), et
+que le découpage produit 2\,929 segments. Deux limites ont été identifiées et
+documentées : la nature exclusivement transactionnelle du corpus, qui
+sous-exploite l'intérêt propre d'une architecture RAG, et le caractère
+quasi inopérant du paramètre de découpage sur des documents aussi courts. Ces
+constats seront repris lors de l'interprétation des résultats. Le chapitre
+suivant présente l'architecture technique construite sur cette base.

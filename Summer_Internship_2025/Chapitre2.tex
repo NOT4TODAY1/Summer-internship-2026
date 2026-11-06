@@ -1,0 +1,28 @@
+\chapter{Compréhension métier}
+
+\section{Problématique }
+Avec le développement des intelligences artificielles capables de générer du texte, comme GPT, il devient difficile de savoir si un texte a été écrit par un humain ou par une machine. Cela crée des problèmes dans plusieurs domaines : à l’école ou à l’université (plagiat ou tricherie), dans les médias (fiabilité des informations), dans la sécurité (désinformation) ou dans la recherche scientifique.
+\\
+Le problème principal est donc de trouver une méthode fiable pour reconnaître automatiquement l’origine d’un texte, afin d’éviter les abus et de garantir que l’information soit crédible.
+\section{Etude de l'existant}
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{5cm}|p{5cm}|p{5cm}|}
+\hline
+\textbf{Solution} & \textbf{Avantages} & \textbf{Inconvénients} \\
+\hline
+GPTZero & Simple à utiliser, conçu spécialement pour la détection de textes IA & Moins fiable pour les textes courts ou réécrits par un humain \\
+\hline
+OpenAI AI Text Classifier & Optimisé pour les modèles OpenAI, facile d’accès & Nécessite des textes longs (\>150 mots), peut donner des faux positifs/négatifs \\
+\hline
+Turnitin (anti-plagiat avec détection IA) & Intégré dans les systèmes éducatifs, combine détection de plagiat et d’IA & Précision limitée pour textes courts ou réécrits, accessible surtout aux institutions \\
+\hline
+DetectGPT & Très prometteuse pour les textes longs, méthode statistique robuste & Complexe à mettre en œuvre, nécessite modèle génératif et connaissances techniques avancées \\
+\hline
+\end{tabular}
+\caption{Solutions existantes pour la détection de textes générés par IA}
+\end{table}
+\section{Solution Proposée}
+Pour répondre à cette problématique, Nous proposons d’utiliser le deep learning pour distinguer les textes humains des textes générés par une IA comme ChatGPT. Le projet consiste à collecter et préparer un corpus de textes, puis à entraîner des modèles de classification tels que CNN et LSTM. Les modèles sont ensuite évalués avec des métriques standard et le modèle le plus performant pourra être utilisé pour analyser de nouveaux textes,
+\section{Conclusion}
+Ce chapitre a présenté la compréhension du métier pour notre projet de détection des textes générés par IA. Nous avons défini la problématique, analysé l’existant et exposé la solution proposée, posant ainsi les bases pour les étapes suivantes du projet.

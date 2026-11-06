@@ -1,0 +1,35 @@
+\chapter*{Conclusion Générale}
+\markboth{Conclusion Générale}{}
+\addcontentsline{toc}{chapter}{Conclusion Générale}
+
+Ce projet a été consacré à la conception et au développement d'un système de détection
+des textes générés par l'intelligence artificielle, dans un contexte où la distinction entre
+productions humaines et contenus automatiques devient un enjeu croissant dans les
+domaines académiques, professionnels et médiatiques. En suivant la méthodologie
+CRISP-DM, nous avons mené chaque étape du projet de manière structurée : de la
+compréhension de la problématique jusqu'au déploiement de l'application, en passant
+par la collecte et la préparation d'un jeu de données de 487\,235 textes, la modélisation
+et l'évaluation de deux architectures de deep learning. Le prototype développé démontre
+la faisabilité technique de notre approche et illustre la pertinence d'un tel outil pour
+détecter automatiquement l'origine d'un texte.
+\\
+\\
+Les résultats obtenus confirment la supériorité du modèle CNN, qui atteint une accuracy
+de 99{,}8\% contre 96\% pour le modèle LSTM, grâce à sa capacité à identifier des
+motifs stylistiques et lexicaux caractéristiques des textes générés par IA. Ces performances
+ont été rendues possibles par une préparation rigoureuse des données, notamment le
+rééquilibrage des classes et la tokenisation via BERT. Toutefois, des limites subsistent :
+la sensibilité du modèle à la qualité du jeu de données, la difficulté à généraliser à des
+textes produits par des modèles génératifs plus récents, et la nécessité d'améliorer
+l'interprétabilité des prédictions. Ces constats ouvrent la voie à des perspectives futures,
+notamment l'adoption d'architectures Transformer pré-entraînées, l'enrichissement du
+corpus d'entraînement et l'adaptation à différents contextes linguistiques.
+\\
+\\
+En définitive, ce travail constitue une première étape vers la mise en place d'outils
+fiables permettant de mieux encadrer l'usage de l'intelligence artificielle dans la
+production écrite. L'application déployée sur Render, combinant un backend FastAPI
+et un frontend React, offre une solution accessible et fonctionnelle. Il met en évidence
+l'importance de continuer à explorer ce domaine en constante évolution, afin d'apporter
+des solutions toujours plus robustes et adaptées aux défis posés par les technologies
+émergentes.

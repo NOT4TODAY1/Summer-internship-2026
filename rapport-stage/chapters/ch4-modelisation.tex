@@ -1,0 +1,432 @@
+% ============================================================
+%  Chapitre 4 — Modélisation : architecture du système RAG
+% ============================================================
+\chapter{Modélisation : architecture du système RAG}
+\label{ch:modelisation}
+
+\section{Introduction}
+
+Ce chapitre présente le cœur technique du projet. Comme souligné au
+chapitre~\ref{ch:contexte}, la phase de modélisation ne consiste pas ici à
+entraîner un modèle, mais à \textbf{assembler et paramétrer une chaîne de
+traitement} dont chaque maillon influence la qualité finale. Nous détaillons
+successivement les quatre composants de cette chaîne : la vectorisation des
+segments, leur indexation dans une base vectorielle, la recherche sémantique, et
+la génération contrainte de la réponse. Nous exposons enfin la manière dont
+LangChain orchestre l'ensemble.
+
+\section{Architecture générale}
+
+Le système repose sur une séparation stricte entre deux phases, illustrée à la
+figure~\ref{fig:archi}.
+
+La \textbf{phase hors ligne} (ingestion) est exécutée une fois, puis à chaque
+évolution du corpus. Elle transforme les documents bruts en un index vectoriel
+persistant. Son coût est élevé mais amorti.
+
+La \textbf{phase en ligne} (interrogation) est exécutée à chaque question. Elle
+ne touche jamais aux fichiers d'origine : elle interroge l'index, construit une
+invite et appelle le modèle de langue.
+
+Ce découplage est une décision d'architecture importante. Il permet de
+ré-indexer le corpus sans interrompre le service, et de faire évoluer la
+stratégie de recherche ou l'invite système sans avoir à re-vectoriser les
+2\,929 segments --- opération qui prend plusieurs minutes sur CPU.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=ink,line width=0.9pt,rounded corners=4pt,fill=white,
+              text width=3.05cm,align=center,minimum height=0.95cm},
+  acc/.style={draw=accent,line width=1.1pt,rounded corners=4pt,fill=soft,
+              text width=3.05cm,align=center,minimum height=0.95cm},
+  store/.style={draw=accent,line width=1.2pt,cylinder,shape border rotate=90,
+              aspect=0.22,fill=soft,text width=2.5cm,align=center,
+              minimum height=1.2cm,inner sep=4pt},
+  fl/.style={-{Stealth[length=2.4mm]},line width=0.9pt,color=muted},
+  lbl/.style={font=\scriptsize\itshape,color=muted}
+]
+
+% ---------- phase offline (colonne de gauche) ----------
+\node[box] (docs) {Documents bruts\\{\scriptsize PDF, DOCX, TXT, MD, CSV}};
+\node[box,below=0.75cm of docs] (load) {\textbf{Chargement}\\{\scriptsize extraction texte\\+ métadonnées}};
+\node[box,below=0.75cm of load] (chunk) {\textbf{Découpage}\\{\scriptsize 1000 car. / 150 chev.}};
+\node[acc,below=0.75cm of chunk] (embed) {\textbf{Vectorisation}\\{\scriptsize all-MiniLM-L6-v2\\384 dimensions}};
+\node[store,below=0.85cm of embed] (chroma) {\textbf{ChromaDB}\\{\scriptsize 2\,929 segments}};
+
+\draw[fl] (docs) -- (load);
+\draw[fl] (load) -- (chunk);
+\draw[fl] (chunk) -- (embed);
+\draw[fl] (embed) -- (chroma);
+
+% ---------- phase online (colonne de droite) ----------
+\node[box,right=3.4cm of docs] (quest) {\textbf{Question}\\{\scriptsize langage naturel}};
+\node[acc,below=0.75cm of quest] (qemb) {\textbf{Vectorisation}\\{\scriptsize même modèle}};
+\node[acc,below=0.75cm of qemb] (search) {\textbf{Recherche}\\{\scriptsize similarité cosinus\\top-$k$ = 4}};
+\node[box,below=0.75cm of search] (prompt) {\textbf{Invite}\\{\scriptsize contexte + question\\+ consignes}};
+\node[acc,below=0.75cm of prompt] (llm) {\textbf{Génération}\\{\scriptsize Ollama / Mistral 7B\\$T$ = 0,1}};
+\node[box,below=0.75cm of llm] (rep) {\textbf{Réponse sourcée}\\{\scriptsize + extraits + scores}};
+
+\draw[fl] (quest) -- (qemb);
+\draw[fl] (qemb) -- (search);
+\draw[fl] (search) -- (prompt);
+\draw[fl] (prompt) -- (llm);
+\draw[fl] (llm) -- (rep);
+
+% ---------- lien entre les deux phases ----------
+\draw[fl,color=accent,line width=1.1pt] (chroma.east) -- ++(0.55,0)
+      |- node[lbl,pos=0.75,above]{top-$k$ extraits} (search.west);
+
+% ---------- étiquettes de phase ----------
+\node[lbl,above=0.18cm of docs]  {\textbf{Phase hors ligne} --- ingestion};
+\node[lbl,above=0.18cm of quest] {\textbf{Phase en ligne} --- interrogation};
+
+\end{tikzpicture}
+\caption{Architecture du système RAG. La phase hors ligne construit l'index
+vectoriel ; la phase en ligne l'interroge à chaque question. Le modèle de
+vectorisation est nécessairement le même dans les deux phases.}
+\label{fig:archi}
+\end{figure}
+
+Un point mérite d'être souligné sur cette figure : le modèle de vectorisation
+apparaît \emph{deux fois}, et il doit impérativement s'agir du même. Les vecteurs
+des segments et celui de la question doivent appartenir au même espace
+sémantique pour que leur comparaison ait un sens. Changer de modèle
+d'\eng{embeddings} impose donc de reconstruire intégralement l'index --- une
+contrainte opérationnelle dont il faut tenir compte avant tout changement.
+
+\section{Vectorisation sémantique}
+
+\subsection{Principe}
+
+La vectorisation, ou \eng{embedding}, consiste à projeter un texte dans un espace
+vectoriel de dimension fixe, de telle sorte que la proximité géométrique entre
+deux vecteurs traduise la proximité de sens entre les deux textes. C'est ce
+mécanisme qui résout le fossé lexical identifié au chapitre~\ref{ch:metier} :
+« congés » et « absences autorisées » n'ont aucun caractère en commun, mais
+leurs vecteurs sont voisins.
+
+Formellement, le modèle réalise une application
+\[
+  E : \mathcal{T} \longrightarrow \mathbb{R}^{d}
+\]
+où $\mathcal{T}$ est l'ensemble des textes et $d$ la dimension de l'espace
+d'arrivée. Pour le modèle retenu, $d = 384$.
+
+\subsection{Choix du modèle}
+
+Le modèle \texttt{sentence-transformers/all-MiniLM-L6-v2} a été retenu. Il
+s'agit d'une architecture Transformer à 6 couches, distillée depuis un modèle
+plus volumineux, comportant environ 22,7 millions de paramètres et produisant des
+vecteurs de dimension 384.
+
+Ce choix résulte d'un compromis explicite entre trois exigences.
+La \textbf{gratuité et la confidentialité} d'abord : le modèle s'exécute
+localement, sans appel réseau, contrairement à l'API
+\texttt{text-embedding-ada-002} d'OpenAI mentionnée dans le sujet.
+La \textbf{légèreté} ensuite : avec 384 dimensions contre 1\,536 pour le modèle
+d'OpenAI, l'index occupe quatre fois moins d'espace et la recherche est plus
+rapide ; le modèle tourne confortablement sur CPU.
+La \textbf{qualité} enfin : ce modèle constitue une référence établie pour la
+recherche sémantique en anglais, langue dans laquelle le corpus est rédigé.
+
+\begin{encadre}
+\textbf{Limite identifiée.} Le modèle \texttt{all-MiniLM-L6-v2} est
+majoritairement entraîné sur de l'anglais. Or les questions des utilisateurs sont
+formulées en français. Cette asymétrie dégrade la qualité de l'appariement
+lorsque la question et le document n'utilisent pas la même langue. Le passage à
+\texttt{paraphrase-multilingual-MiniLM-L12-v2}, entraîné sur plus de cinquante
+langues, constitue la première piste d'amélioration identifiée
+(\emph{cf.} chapitre~\ref{ch:evaluation}). Ce changement impose toutefois une
+ré-indexation complète du corpus.
+\end{encadre}
+
+\subsection{Normalisation}
+
+Les vecteurs sont normalisés à la production ($\lVert v \rVert_2 = 1$). Cette
+normalisation présente un avantage pratique : la similarité cosinus se réduit
+alors au simple produit scalaire,
+\[
+  \cos(u, v) = \frac{u \cdot v}{\lVert u \rVert\,\lVert v \rVert} = u \cdot v,
+\]
+ce qui accélère la recherche et rend les scores directement comparables entre
+requêtes.
+
+\begin{lstlisting}[style=python,caption={Instanciation du modèle de vectorisation (\texttt{src/ingestion/indexer.py})}]
+def get_embeddings() -> HuggingFaceEmbeddings:
+    """Instancie paresseusement le modele d'embeddings (charge une fois, reutilise)."""
+    global _embeddings_instance
+    if _embeddings_instance is None:
+        _embeddings_instance = HuggingFaceEmbeddings(
+            model_name=settings.embedding_model,
+            encode_kwargs={"normalize_embeddings": True},
+        )
+    return _embeddings_instance
+\end{lstlisting}
+
+Le chargement est \emph{paresseux} et mis en cache dans une variable de module :
+le modèle, qui pèse environ 90~Mo, n'est chargé qu'au premier appel puis
+réutilisé. Sans cette précaution, chaque requête HTTP rechargerait le modèle
+depuis le disque, ajoutant plusieurs secondes de latence.
+
+\section{Indexation vectorielle}
+
+\subsection{ChromaDB}
+
+Les vecteurs produits sont persistés dans une collection ChromaDB nommée
+\texttt{company\_documents}, stockée localement dans
+\texttt{data/processed/chroma\_db/}. ChromaDB a été préférée à Pinecone et Qdrant
+pour trois raisons : elle fonctionne intégralement en local sans serveur ni clé
+d'API, elle s'intègre nativement à LangChain, et ses performances sont largement
+suffisantes à l'échelle de plusieurs centaines de milliers de segments.
+
+En interne, ChromaDB indexe les vecteurs à l'aide d'un graphe \textbf{HNSW}
+(\eng{Hierarchical Navigable Small World}), une structure de recherche
+approximative de plus proches voisins. Elle évite le parcours exhaustif de la
+collection : la complexité de recherche passe de $O(n)$ à
+$O(\log n)$ environ, au prix d'une approximation en pratique négligeable.
+
+\subsection{Indexation par lots}
+
+L'insertion s'effectue par lots de 128 segments plutôt que segment par segment.
+Ce choix réduit sensiblement la durée totale d'indexation, la vectorisation
+bénéficiant du traitement vectoriel par lot, et il limite l'empreinte mémoire
+en évitant de maintenir l'intégralité des vecteurs en RAM.
+
+\begin{lstlisting}[style=python,caption={Indexation par lots (\texttt{src/ingestion/indexer.py})}]
+def index_documents(chunks: list[Document], batch_size: int = 128) -> int:
+    """Vectorise et persiste les segments dans ChromaDB."""
+    if not chunks:
+        return 0
+    vectorstore = get_vectorstore()
+    total = 0
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i : i + batch_size]
+        vectorstore.add_documents(batch)
+        total += len(batch)
+    return total
+\end{lstlisting}
+
+L'état final de l'index est présenté au tableau~\ref{tab:index}.
+
+\begin{table}[htbp]
+\centering
+\caption{Caractéristiques de l'index vectoriel construit}
+\label{tab:index}
+\small
+\begin{tabularx}{\textwidth}{@{}p{5.4cm}X@{}}
+\toprule
+\textbf{Paramètre} & \textbf{Valeur} \\
+\midrule
+Base vectorielle & ChromaDB (persistée sur disque local) \\
+Nom de la collection & \texttt{company\_documents} \\
+Nombre de segments indexés & 2\,929 \\
+Modèle de vectorisation & \texttt{all-MiniLM-L6-v2} \\
+Dimension des vecteurs & 384 \\
+Métrique de similarité & Cosinus (vecteurs normalisés) \\
+Structure d'index & HNSW \\
+Taille sur disque & environ 18~Mo \\
+Taille de lot à l'insertion & 128 segments \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Recherche sémantique}
+
+À l'interrogation, la question est vectorisée par le même modèle, puis comparée à
+l'ensemble des vecteurs de l'index. Les $k$ segments les plus proches sont
+retournés, accompagnés de leur score de pertinence.
+
+Le paramètre $k$ a été fixé à \textbf{4}. Sa valeur résulte d'un arbitrage :
+un $k$ trop faible risque d'omettre l'information nécessaire (dégradant le
+\eng{context recall}) ; un $k$ trop élevé introduit des segments hors sujet qui
+diluent le contexte, dégradent le \eng{context precision} et augmentent le
+risque que le modèle s'appuie sur un passage non pertinent. La valeur $k = 4$
+constitue par ailleurs un compromis de latence : chaque segment
+supplémentaire allonge l'invite et donc le temps de génération.
+
+\begin{lstlisting}[style=python,caption={Recherche avec scores (\texttt{src/rag/retriever.py})}]
+def retrieve_with_scores(query: str, k: int | None = None):
+    """Recupere les segments avec leur score de pertinence."""
+    vectorstore = get_vectorstore()
+    return vectorstore.similarity_search_with_relevance_scores(
+        query, k=k or settings.top_k
+    )
+\end{lstlisting}
+
+L'exposition des scores n'est pas un simple élément de confort de mise au point.
+Elle remplit deux fonctions dans le système final : elle alimente
+l'affichage de traçabilité présenté à l'utilisateur, et elle sert de signal pour
+le garde-fou décrit à la section~\ref{sec:garde-fous}.
+
+\section{Génération contrainte}
+
+\subsection{Le modèle de langue}
+
+La génération est assurée par \textbf{Mistral 7B}, servi localement par
+\textbf{Ollama}. Le modèle, quantifié, occupe environ 4,4~Go sur disque et
+s'exécute sur CPU. Ollama expose une API HTTP locale sur le port 11434, à
+laquelle LangChain se connecte via le connecteur \texttt{ChatOllama}.
+
+La \textbf{température} est fixée à \textbf{0,1}, valeur volontairement très
+basse. La température contrôle l'aléa de l'échantillonnage des \eng{tokens} :
+plus elle est élevée, plus le modèle produit un texte varié et créatif. Or la
+créativité est exactement ce qu'il faut proscrire ici. Nous attendons du modèle
+qu'il restitue fidèlement le contenu du contexte fourni, non qu'il le reformule
+librement. Une température quasi nulle rend en outre les réponses largement
+reproductibles, ce qui est indispensable pour que l'évaluation du
+chapitre~\ref{ch:evaluation} soit stable d'une exécution à l'autre.
+
+\subsection{L'invite système : premier levier anti-hallucination}
+
+L'invite système constitue le principal levier de réduction des hallucinations
+au niveau de la génération. Elle a été formulée pour contraindre explicitement
+le modèle sur quatre points : la restriction au contexte fourni, l'obligation
+d'avouer son ignorance, l'interdiction d'inventer des faits, et la citation des
+sources.
+
+\begin{lstlisting}[style=plain,caption={Invite système (\texttt{src/rag/pipeline.py})}]
+Tu es un assistant interne d'entreprise. Reponds UNIQUEMENT a partir du
+contexte fourni ci-dessous, extrait des documents internes de l'entreprise.
+
+Regles strictes :
+- Si la reponse ne se trouve pas dans le contexte, reponds explicitement :
+  "Je ne trouve pas cette information dans les documents disponibles."
+- Ne jamais inventer de faits, chiffres ou procedures qui ne sont pas
+  dans le contexte.
+- Cite les documents sources utilises (nom de fichier) a la fin de ta reponse.
+- Reponds de facon concise et professionnelle, en francais, sauf si la
+  question est posee en anglais.
+
+Contexte :
+{context}
+
+Question : {question}
+
+Reponse :
+\end{lstlisting}
+
+Deux détails de formulation méritent d'être relevés. D'une part, la consigne
+d'ignorance fournit au modèle une \emph{formulation exacte} à reprendre plutôt
+qu'une simple interdiction : lui donner une sortie de secours explicite est
+nettement plus efficace que de lui interdire d'inventer sans lui indiquer quoi
+faire à la place. D'autre part, chaque extrait injecté dans le contexte est
+préfixé du nom de son fichier d'origine, ce qui permet au modèle de citer
+correctement ses sources :
+
+\begin{lstlisting}[style=python,caption={Formatage du contexte avec attribution de source}]
+def _format_docs(docs) -> str:
+    return "\n\n---\n\n".join(
+        f"[Source: {d.metadata.get('filename', 'unknown')}]\n{d.page_content}"
+        for d in docs
+    )
+\end{lstlisting}
+
+\subsection{Garde-fou sur le contexte vide}
+\label{sec:garde-fous}
+
+L'invite ne suffit pas. Un second garde-fou, de nature programmatique,
+court-circuite entièrement le modèle lorsque la recherche ne remonte aucun
+segment. Dans ce cas, la réponse d'ignorance est retournée directement, sans
+appel au LLM.
+
+\begin{lstlisting}[style=python,caption={Garde-fou programmatique (\texttt{src/rag/pipeline.py})}]
+scored_docs = retrieve_with_scores(question, k=k)
+
+if not scored_docs:
+    return RAGResponse(
+        answer="Je ne trouve pas cette information dans les documents disponibles.",
+        sources=[],
+        context_found=False,
+    )
+\end{lstlisting}
+
+Ce garde-fou est plus robuste que l'invite, car il ne dépend pas de la
+docilité du modèle : un LLM peut ignorer une consigne, il ne peut pas contourner
+une instruction conditionnelle. C'est un principe de conception qu'il convient
+de généraliser : \emph{tout ce qui peut être garanti par du code ne doit pas être
+délégué à l'invite}.
+
+\section{Orchestration avec LangChain}
+
+L'ensemble est assemblé au moyen du langage d'expression de chaînes de LangChain
+(\eng{LangChain Expression Language}), qui permet de composer les étapes à
+l'aide de l'opérateur \texttt{|}.
+
+\begin{lstlisting}[style=python,caption={Composition de la chaîne RAG (\texttt{src/rag/pipeline.py})}]
+chain = (
+    {"context": lambda x: _format_docs(docs), "question": RunnablePassthrough()}
+    | _prompt
+    | get_llm()
+    | StrOutputParser()
+)
+
+answer = chain.invoke(question)
+\end{lstlisting}
+
+La chaîne se lit de gauche à droite : construction du dictionnaire de variables,
+application du gabarit d'invite, appel du modèle, extraction de la chaîne de
+caractères de sortie. Cette écriture déclarative rend la structure du pipeline
+immédiatement lisible et facilite le remplacement d'un maillon --- changer de
+modèle de langue ne demande de modifier qu'un seul appel.
+
+La réponse finale agrège le texte généré et les métadonnées de traçabilité :
+
+\begin{lstlisting}[style=python,caption={Construction de la réponse sourcée}]
+sources = [
+    {
+        "filename": d.metadata.get("filename"),
+        "chunk_id": d.metadata.get("chunk_id"),
+        "relevance_score": round(float(score), 3),
+    }
+    for d, score in scored_docs
+]
+
+return RAGResponse(answer=answer, sources=sources, context_found=True)
+\end{lstlisting}
+
+\section{Synthèse des paramètres}
+
+Le tableau~\ref{tab:hyperparams} récapitule l'ensemble des paramètres du
+pipeline. Tous sont exposés par variables d'environnement, ce qui permet de les
+faire varier sans modification du code --- condition nécessaire à l'itération
+mesurée décrite au chapitre suivant.
+
+\begin{table}[htbp]
+\centering
+\caption{Paramètres du pipeline RAG}
+\label{tab:hyperparams}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{3.4cm}X@{}}
+\toprule
+\textbf{Paramètre} & \textbf{Valeur} & \textbf{Justification} \\
+\midrule
+\texttt{CHUNK\_SIZE} & 1000 caractères &
+Assez large pour conserver un document transactionnel entier, assez court pour
+rester sous la limite du modèle d'\eng{embeddings} \\
+\texttt{CHUNK\_OVERLAP} & 150 caractères &
+Évite qu'une information soit coupée à la frontière de deux segments \\
+\texttt{TOP\_K} & 4 &
+Compromis entre \eng{recall} (ne rien manquer) et \eng{precision} (ne pas diluer
+le contexte) \\
+\texttt{EMBEDDING\_MODEL} & \texttt{all-MiniLM-L6-v2} &
+Local, léger (384 dim.), gratuit \\
+\texttt{OLLAMA\_MODEL} & \texttt{mistral} &
+7 milliards de paramètres, exécutable sur CPU, licence ouverte \\
+\texttt{OLLAMA\_TEMPERATURE} & 0,1 &
+Minimise la créativité et rend les réponses reproductibles \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conclusion}
+
+Ce chapitre a détaillé l'architecture du système : vectorisation par
+\texttt{all-MiniLM-L6-v2}, indexation HNSW dans ChromaDB, recherche par
+similarité cosinus à $k = 4$, et génération contrainte par Mistral 7B à
+température 0,1. Nous avons insisté sur les deux leviers anti-hallucination mis
+en place --- une invite système explicite et un garde-fou programmatique sur le
+contexte vide --- ainsi que sur le principe qui les sous-tend : privilégier la
+garantie par le code sur la consigne en langage naturel. Reste à vérifier que ces
+leviers sont effectivement efficaces. C'est l'objet du chapitre suivant.

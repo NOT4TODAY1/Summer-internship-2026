@@ -1,0 +1,177 @@
+% ============================================================
+% Graphiques d'évaluation du système RAG
+% À inclure dans un chapitre avec : \input{graphes-evaluation}
+% ============================================================
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=10cm,y=0.62cm]
+  \draw[->,muted] (-0.1,0) -- (0.62,0)
+    node[below=4pt,font=\scriptsize] {Score de pertinence maximal};
+  \foreach \x/\label in {-0.1/{-0,10},0/{0},0.2/{0,20},0.4/{0,40},0.6/{0,60}} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\label};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (0.082,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (0.115,1.80);
+  \draw[accent,fill=accent!75] (0,2.45) rectangle (0.194,2.80);
+  \draw[accent,fill=accent!75] (0,3.45) rectangle (0.567,3.80);
+  \draw[warn,fill=warn!75] (0,4.45) rectangle (0.046,4.80);
+  \draw[warn,fill=warn!75] (0,5.45) rectangle (0.003,5.80);
+  \draw[warn,fill=warn!75] (-0.048,6.45) rectangle (0,6.80);
+  \foreach \y/\label in {
+    0.625/{Commande 10248},
+    1.625/{Facture 10248},
+    2.625/{Stock juillet},
+    3.625/{Maria Larsson},
+    4.625/{Congés payés},
+    5.625/{Note de frais},
+    6.625/{Intégration}
+  } {
+    \node[anchor=east,font=\scriptsize] at (-0.05,\y) {\label};
+  }
+  \node[anchor=west,font=\scriptsize] at (0.59,0.625) {0,082};
+  \node[anchor=west,font=\scriptsize] at (0.59,1.625) {0,115};
+  \node[anchor=west,font=\scriptsize] at (0.59,2.625) {0,194};
+  \node[anchor=west,font=\scriptsize] at (0.59,3.625) {0,567};
+  \node[anchor=west,font=\scriptsize] at (0.59,4.625) {0,046};
+  \node[anchor=west,font=\scriptsize] at (0.59,5.625) {0,003};
+  \node[anchor=west,font=\scriptsize] at (0.59,6.625) {-0,048};
+\end{tikzpicture}
+\caption{Scores maximaux de pertinence selon le type de question}
+\label{fig:scores-retrieval}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Évaluation récapitulative du système RAG}
+\label{tab:evaluation-recapitulative}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.1cm}X p{2.1cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Indicateurs} & \textbf{Résultats observés} &
+\textbf{Appréciation} \\
+\midrule
+\shortstack[l]{\textbf{Qualité de la recherche}\\\eng{Retrieval}}
+&
+Score de pertinence, recherche top-$k$, couverture des sources
+&
+Recherche vectorielle fonctionnelle avec $k=4$ et affichage des scores.
+Score moyen français : 0,153 ; score moyen anglais : 0,461. La recherche
+par identifiant exact reste perfectible.
+&
+\textbf{Satisfaisante, à améliorer}
+\\
+\midrule
+\shortstack[l]{\textbf{Qualité des réponses}\\\eng{Generation}}
+&
+Fidélité au contexte, pertinence, citations, maîtrise des hallucinations
+&
+Prompt restrictif, température fixée à 0,1, réponse de repli si le contexte
+est absent et citation des fichiers sources. Les métriques RAGAS complètes
+restent à mesurer.
+&
+\textbf{Satisfaisante}
+\\
+\midrule
+\shortstack[l]{\textbf{Performance}\\\textbf{technique}}
+&
+Latence de recherche, latence de génération, capacité d'indexation
+&
+2\,676 documents traités et 2\,929 segments indexés. Latence de recherche :
+182 ms en moyenne. Génération locale : environ 110 s sur CPU, ce qui
+constitue le principal goulot d'étranglement.
+&
+\textbf{Satisfaisante}
+\\
+\midrule
+\shortstack[l]{\textbf{Fiabilité et}\\\textbf{robustesse}}
+&
+Extraction, traçabilité, gestion des erreurs, reproductibilité
+&
+0 échec d'extraction observé sur le corpus mesuré. Métadonnées conservées,
+sources et scores affichés, API structurée avec endpoints de santé,
+d'interrogation et d'ingestion. Authentification et re-ranking à ajouter
+avant une exposition publique.
+&
+\textbf{Bonne en local}
+\\
+\midrule
+\shortstack[l]{\textbf{Utilité}\\\textbf{métier}}
+&
+Accès à l'information, confidentialité, simplicité d'utilisation,
+vérifiabilité
+&
+Interface conversationnelle accessible en langage naturel, réponses
+accompagnées de sources vérifiables et traitement local des documents.
+L'outil est particulièrement adapté à une démonstration et à une recherche
+documentaire interne contrôlée.
+&
+\textbf{Très satisfaisante}
+\\
+\midrule
+\multicolumn{3}{r}{\textbf{Évaluation globale}} &
+\textbf{Satisfaisante}
+\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=8cm,y=0.62cm]
+  \draw[->,muted] (0,0) -- (0.72,0)
+    node[below=4pt,font=\scriptsize] {Score moyen};
+  \foreach \x/\label in {0/{0},0.2/{0,20},0.4/{0,40},0.6/{0,60}} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\label};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (0.153,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (0.461,1.80);
+  \node[anchor=east,font=\scriptsize] at (-0.05,0.625) {Français};
+  \node[anchor=east,font=\scriptsize] at (-0.05,1.625) {Anglais};
+  \node[anchor=west,font=\scriptsize] at (0.475,0.625) {0,153};
+  \node[anchor=west,font=\scriptsize] at (0.475,1.625) {0,461};
+\end{tikzpicture}
+\caption{Comparaison des scores moyens selon la langue de la question}
+\label{fig:langue-scores}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=0.022cm,y=0.72cm]
+  \draw[->,muted] (0,0) -- (290,0)
+    node[below=4pt,font=\scriptsize] {Latence (ms)};
+  \foreach \x in {0,50,100,150,200,250} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\x};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (193,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (160,1.80);
+  \draw[accent,fill=accent!75] (0,2.45) rectangle (202,2.80);
+  \draw[accent,fill=accent!75] (0,3.45) rectangle (148,3.80);
+  \draw[warn,fill=warn!75] (0,4.45) rectangle (263,4.80);
+  \draw[accent,fill=accent!75] (0,5.45) rectangle (151,5.80);
+  \draw[accent,fill=accent!75] (0,6.45) rectangle (158,6.80);
+  \foreach \y/\label in {
+    0.625/{Commande 10248},
+    1.625/{Facture 10248},
+    2.625/{Stock juillet},
+    3.625/{Maria Larsson},
+    4.625/{Congés payés},
+    5.625/{Note de frais},
+    6.625/{Intégration}
+  } {
+    \node[anchor=east,font=\scriptsize] at (-150,\y) {\label};
+  }
+  \node[anchor=west,font=\scriptsize] at (268,0.625) {193};
+  \node[anchor=west,font=\scriptsize] at (235,1.625) {160};
+  \node[anchor=west,font=\scriptsize] at (244,2.625) {202};
+  \node[anchor=west,font=\scriptsize] at (190,3.625) {148};
+  \node[anchor=west,font=\scriptsize] at (268,4.625) {263};
+  \node[anchor=west,font=\scriptsize] at (193,5.625) {151};
+  \node[anchor=west,font=\scriptsize] at (200,6.625) {158};
+\end{tikzpicture}
+\caption{Latence de recherche pour les sept requêtes évaluées}
+\label{fig:latence-recherche}
+\end{figure}

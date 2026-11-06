@@ -16,9 +16,16 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "mistral"
     ollama_temperature: float = 0.1
+    # Limit the generated answer length to reduce time spent waiting for Ollama.
+    ollama_num_predict: int = 512
+    # Avoid CUDA initialization crashes on machines with an incompatible GPU.
+    ollama_num_gpu: int = 0
 
     # --- Embeddings ---
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    evaluation_embedding_model: str = (
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
 
     # --- Vector store ---
     chroma_persist_dir: str = str(PROJECT_ROOT / "data" / "processed" / "chroma_db")

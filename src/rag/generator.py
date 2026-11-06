@@ -26,5 +26,7 @@ def get_llm() -> ChatOllama:
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             temperature=settings.ollama_temperature,
+            num_predict=settings.ollama_num_predict,
+            num_gpu=settings.ollama_num_gpu,
         )
     return _llm_instance

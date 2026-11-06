@@ -10,8 +10,11 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from src.config import settings
@@ -39,6 +42,8 @@ class SourceItem(BaseModel):
     filename: str | None
     chunk_id: str | None
     relevance_score: float
+    excerpt: str | None = None
+    document_url: str | None = None
 
 
 class QueryResponse(BaseModel):
@@ -72,8 +77,54 @@ def query(req: QueryRequest) -> QueryResponse:
 
     return QueryResponse(
         answer=result.answer,
-        sources=[SourceItem(**s) for s in result.sources],
+        sources=[
+            SourceItem(
+                **s,
+                document_url=(
+                    f"/documents/{quote(s['filename'])}" if s.get("filename") else None
+                ),
+            )
+            for s in result.sources
+        ],
         context_found=result.context_found,
+    )
+
+
+def _document_path(filename: str) -> Path:
+    """Resolve a document inside the configured data directory only."""
+    data_dir = Path(settings.raw_data_dir).resolve()
+    candidate = (data_dir / filename).resolve()
+    if data_dir not in candidate.parents or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Document introuvable.")
+    if candidate.suffix.lower() not in {".pdf", ".docx", ".txt", ".md", ".csv"}:
+        raise HTTPException(status_code=404, detail="Type de document non pris en charge.")
+    return candidate
+
+
+@app.get("/documents/{filename:path}/text", response_class=PlainTextResponse)
+def get_document_text(filename: str) -> str:
+    """Return a readable text preview for non-PDF source documents."""
+    path = _document_path(filename)
+    if path.suffix.lower() not in {".txt", ".md", ".csv"}:
+        raise HTTPException(status_code=415, detail="Aperçu texte indisponible pour ce type de document.")
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+@app.get("/documents/{filename:path}")
+def get_document(filename: str) -> FileResponse:
+    """Open or download a source document without allowing path traversal."""
+    path = _document_path(filename)
+    media_types = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".csv": "text/csv",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+    }
+    return FileResponse(
+        path,
+        media_type=media_types[path.suffix.lower()],
+        headers={"Content-Disposition": f'inline; filename="{path.name}"'},
     )
 
 

@@ -1,0 +1,89 @@
+% ============================================================
+%  Introduction Générale
+% ============================================================
+\chapter*{Introduction Générale}
+\addcontentsline{toc}{chapter}{Introduction Générale}
+\markboth{Introduction Générale}{}
+
+Les organisations produisent et accumulent aujourd'hui des volumes de documents
+internes sans précédent : rapports d'activité, procédures, manuels techniques,
+contrats, factures, bons de commande, bases de connaissances. Ce patrimoine
+informationnel constitue une ressource stratégique, mais il reste largement
+sous-exploité. L'information existe, elle est archivée, mais elle demeure
+difficilement accessible : retrouver un chiffre précis ou une procédure
+particulière suppose de savoir dans quel document chercher, puis de parcourir
+manuellement ce document. Le coût de cette recherche croît linéairement avec la
+taille du corpus, jusqu'à devenir prohibitif.
+
+Les moteurs de recherche documentaires classiques, fondés sur la correspondance
+de mots-clés, n'apportent qu'une réponse partielle à ce problème. Ils retournent
+une liste de documents, non une réponse : l'utilisateur doit encore lire et
+synthétiser. Surtout, ils échouent dès que la formulation de la question ne
+reprend pas le vocabulaire exact du document --- une requête sur les
+« congés » ne trouvera pas un texte parlant d'« absences autorisées ».
+
+L'émergence des grands modèles de langue (\eng{Large Language Models}, LLM) a
+transformé cette situation. Ces modèles savent comprendre une question formulée
+en langage naturel et produire une réponse rédigée. Employés seuls, ils
+présentent toutefois deux limites disqualifiantes en contexte professionnel.
+D'abord ils ne connaissent pas les documents internes de l'entreprise, qui ne
+font pas partie de leurs données d'entraînement. Ensuite, et plus gravement, ils
+\emph{hallucinent} : lorsqu'ils ignorent une réponse, ils en produisent une
+plausible mais fausse, sans signaler leur incertitude. Un assistant interne qui
+inventerait un montant de facture ou une clause contractuelle serait non
+seulement inutile, mais dangereux.
+
+L'architecture \emph{RAG} (\eng{Retrieval-Augmented Generation}) répond
+précisément à ces deux limites. Son principe est d'ancrer la génération dans des
+documents réels : plutôt que d'interroger le modèle sur ses connaissances
+internes, on recherche d'abord les passages pertinents dans le corpus de
+l'entreprise, puis on demande au modèle de répondre \emph{uniquement} à partir
+de ces passages, en citant ses sources. La connaissance reste dans les
+documents ; le modèle n'est plus qu'un moteur de reformulation contraint.
+
+\section*{Objectifs du stage}
+
+Ce stage, d'une durée de \internshipduration, a pour objet la conception, la
+réalisation et le déploiement d'un système RAG complet permettant d'interroger
+en langage naturel un corpus de documents d'entreprise. Cinq objectifs ont été
+fixés :
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item collecter, nettoyer et structurer les documents internes et mettre en
+        place un pipeline d'indexation automatique ;
+  \item générer des \eng{embeddings} sémantiques et les stocker dans une base de
+        données vectorielle ;
+  \item connecter la recherche sémantique à un LLM via un \eng{framework}
+        d'orchestration afin de produire des réponses sourcées ;
+  \item évaluer la fiabilité du système et réduire les hallucinations à l'aide
+        d'un \eng{framework} d'évaluation dédié ;
+  \item déployer l'assistant via une API et une interface web dans un
+        environnement conteneurisé.
+\end{enumerate}
+
+Une contrainte transverse a structuré l'ensemble des choix techniques :
+l'intégralité de la chaîne devait fonctionner \textbf{localement et sans coût
+d'API}. Les documents internes d'une entreprise sont par nature confidentiels ;
+les transmettre à un service tiers pour vectorisation ou génération soulève des
+questions de conformité difficilement acceptables. Cette contrainte, loin d'être
+une limitation, s'est révélée être un argument central en faveur de
+l'architecture retenue.
+
+\section*{Méthodologie et plan du rapport}
+
+Le projet a été conduit selon la méthodologie \textbf{CRISP-DM}
+(\eng{Cross-Industry Standard Process for Data Mining}), qui structure un projet
+de science des données en six phases itératives. Le plan de ce rapport suit
+fidèlement cette progression.
+
+Le \textbf{chapitre 1} présente l'organisme d'accueil et détaille la
+méthodologie CRISP-DM. Le \textbf{chapitre 2} formalise la problématique
+métier, analyse les solutions existantes et justifie la solution retenue. Le
+\textbf{chapitre 3} décrit le corpus documentaire, son exploration et sa
+préparation. Le \textbf{chapitre 4} expose l'architecture technique du système
+RAG : vectorisation, indexation, recherche sémantique et génération contrainte.
+Le \textbf{chapitre 5} est consacré à l'évaluation de la fiabilité du système et
+aux leviers mis en place contre les hallucinations. Le \textbf{chapitre 6}
+présente le déploiement : API REST, interface web et conteneurisation. Une
+conclusion générale dresse le bilan du travail réalisé et ouvre sur des
+perspectives d'amélioration.

@@ -41,6 +41,15 @@ def get_vectorstore() -> Chroma:
     )
 
 
+def get_metadata_store() -> Chroma:
+    """Return a Chroma handle for metadata/document reads without embeddings."""
+    return Chroma(
+        collection_name=settings.chroma_collection_name,
+        embedding_function=None,
+        persist_directory=settings.chroma_persist_dir,
+    )
+
+
 def index_documents(chunks: list[Document], batch_size: int = 128) -> int:
     """Embed and persist chunks into ChromaDB. Returns number of chunks indexed."""
     if not chunks:

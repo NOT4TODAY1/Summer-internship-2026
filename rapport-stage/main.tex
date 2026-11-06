@@ -1,0 +1,71 @@
+% ============================================================
+%  RAPPORT DE STAGE — Systeme RAG (Retrieval-Augmented Generation)
+%  Stage Data Science — Ete 2026
+%
+%  Compilation :  pdflatex main  ->  pdflatex main   (2 passes)
+%             ou :  make
+%             ou :  deposer le dossier sur Overleaf
+% ============================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ------------------------------------------------------------
+%  >>> INFORMATIONS A VERIFIER / ADAPTER <<<
+%  Ces valeurs alimentent la page de garde et les metadonnees PDF.
+% ------------------------------------------------------------
+\newcommand{\reporttitle}{Construction d'un Système RAG pour l'Automatisation de la Recherche d'Information en Entreprise}
+\newcommand{\reportsubtitle}{Assistant documentaire interne à réponses sourcées}
+\newcommand{\authorname}{TLILI Mohamed Aziz}
+\newcommand{\supervisor}{Mme ENNINE Hanene}
+\newcommand{\organism}{ESPRIT-Tech}
+\newcommand{\academicyear}{2025 / 2026}
+\newcommand{\speciality}{DATA SCIENCE}
+\newcommand{\internshipduration}{2 mois}
+
+\input{preamble}
+
+\begin{document}
+
+% ============================================================
+%  PARTIE LIMINAIRE  (numerotation romaine)
+% ============================================================
+\pagenumbering{roman}
+
+\input{frontmatter/titlepage}
+
+\input{frontmatter/dedicaces}
+\input{frontmatter/remerciements}
+
+\cleardoublepage
+\pagestyle{fancy}
+\renewcommand{\contentsname}{Table des matières}
+\tableofcontents
+
+\cleardoublepage
+\renewcommand{\listfigurename}{Table des figures}
+\listoffigures
+
+\cleardoublepage
+\renewcommand{\listtablename}{Liste des tableaux}
+\listoftables
+
+% ============================================================
+%  CORPS DU RAPPORT  (numerotation arabe)
+% ============================================================
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/introduction}
+
+\input{chapters/ch1-contexte}
+\input{chapters/ch2-metier}
+\input{chapters/ch3-donnees}
+\input{chapters/ch4-modelisation}
+\input{chapters/ch5-evaluation}
+\input{chapters/ch6-deploiement}
+
+\input{chapters/conclusion}
+
+\input{bibliographie}
+
+\end{document}

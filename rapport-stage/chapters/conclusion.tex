@@ -1,0 +1,141 @@
+% ============================================================
+%  Conclusion Générale
+% ============================================================
+\chapter*{Conclusion Générale}
+\addcontentsline{toc}{chapter}{Conclusion Générale}
+\markboth{Conclusion Générale}{}
+
+Ce stage a été consacré à la conception, à la réalisation et au déploiement d'un
+système RAG (\eng{Retrieval-Augmented Generation}) permettant d'interroger en
+langage naturel un corpus de documents d'entreprise, avec des réponses sourcées
+et vérifiables. Le travail a été conduit selon la méthodologie CRISP-DM, dont
+chaque phase a été traitée successivement : compréhension du besoin métier,
+exploration et préparation d'un corpus de 2\,676 documents, construction de la
+chaîne de traitement, évaluation de sa fiabilité et déploiement conteneurisé.
+
+\section*{Bilan du travail réalisé}
+
+Sur le plan fonctionnel, la chaîne complète est opérationnelle. Le pipeline
+d'ingestion traite les cinq formats documentaires courants, extrait le texte,
+l'enrichit de métadonnées de traçabilité et le découpe en segments : les 2\,676
+fichiers du corpus ont été intégralement traités, sans aucun échec d'extraction,
+produisant 2\,929 segments vectorisés et persistés dans ChromaDB. La recherche
+sémantique s'exécute en 182~millisecondes en moyenne. La génération est assurée
+localement par Mistral 7B, contraint par une invite qui lui interdit de sortir du
+contexte fourni. L'ensemble est exposé par une API REST à quatre
+\eng{endpoints} et une interface conversationnelle, déployés en trois conteneurs
+Docker.
+
+La contrainte structurante du projet a été respectée sans concession :
+\textbf{aucune donnée ne quitte l'infrastructure}. Vectorisation, indexation,
+recherche, génération et même l'évaluation par modèle juge s'exécutent
+localement, sans clé d'API ni coût récurrent. Cette propriété, qui aurait pu
+paraître une contrainte appauvrissante, s'est révélée le principal argument de
+l'architecture retenue face aux solutions du marché.
+
+Sur le plan de la traçabilité, l'objectif est atteint. Chaque réponse expose les
+fichiers sources mobilisés, l'identifiant précis de chaque segment et son score
+de pertinence. L'utilisateur peut vérifier ce que le système avance plutôt que de
+devoir lui faire confiance --- ce qui constitue, en contexte professionnel, la
+condition d'adoption d'un outil de ce type.
+
+\section*{Principal apport de la démarche d'évaluation}
+
+Le résultat le plus instructif du stage n'est pas la mise en service du système,
+mais ce que sa mesure a révélé. À l'usage, l'assistant produisait des réponses
+d'apparence satisfaisante. L'évaluation quantitative de la composante de
+recherche a pourtant montré que les scores de pertinence étaient anormalement
+faibles sur des questions posées en français, et que le système s'appuyait
+fréquemment sur des documents inadaptés.
+
+Une expérience contrôlée a permis d'en identifier et d'en quantifier la cause :
+à contenu sémantique identique, la traduction d'une question en anglais
+\textbf{triple le score de pertinence} (0,461 contre 0,153 en moyenne). Le modèle
+\texttt{all-MiniLM-L6-v2}, entraîné essentiellement sur de l'anglais, projette
+mal les questions françaises dans l'espace sémantique de documents anglophones.
+
+Ce constat porte un enseignement méthodologique qui dépasse le cas particulier :
+\textbf{un système RAG peut paraître fonctionner tout en s'appuyant sur les
+mauvais documents}. Une réponse fluide, bien structurée et accompagnée de sources
+n'est pas pour autant une réponse correcte. Seule la mesure permet de distinguer
+les deux, et c'est ce qui justifie la place centrale que CRISP-DM accorde à la
+phase d'évaluation avant tout déploiement.
+
+\section*{Limites du travail}
+
+Trois limites doivent être clairement énoncées.
+
+La \textbf{campagne d'évaluation RAGAS n'a pas été menée à son terme}. Le module
+de mesure est développé et configuré pour fonctionner avec un modèle juge local,
+mais son exécution requiert la constitution préalable d'un jeu de questions
+annotées de réponses de référence rédigées manuellement. Les quatre métriques ---
+\eng{faithfulness}, \eng{answer relevancy}, \eng{context precision} et
+\eng{context recall} --- restent donc à mesurer. Le choix a été fait de laisser
+ces valeurs explicitement vacantes dans le présent rapport plutôt que de les
+estimer.
+
+Le \textbf{corpus est exclusivement transactionnel}. Les 2\,676 documents sont
+des factures, bons de commande, commandes et états de stock, c'est-à-dire des
+enregistrements structurés. Ils permettent de valider techniquement le pipeline,
+mais ils sous-exploitent l'intérêt propre d'une architecture RAG, qui donne son
+plein rendement sur des documents rédigés où l'information est diffuse. Sur des
+enregistrements structurés, une requête SQL serait plus exacte et plus rapide.
+Cette composition explique par ailleurs le caractère quasi inopérant du paramètre
+de découpage, la longueur moyenne d'un document (498 caractères) étant très
+inférieure à la taille de segment configurée (1\,000 caractères).
+
+La \textbf{latence de génération est excessive} pour un usage quotidien : environ
+110 secondes par réponse. L'inférence d'un modèle de 7 milliards de paramètres
+sur CPU représente plus de 99~\% du temps de réponse total, la recherche
+vectorielle étant quant à elle négligeable.
+
+\section*{Perspectives}
+
+Les travaux futurs se hiérarchisent naturellement à partir des mesures obtenues.
+
+\paragraph{Adopter un modèle d'\eng{embeddings} multilingue.}
+C'est l'action de rang le plus élevé, car la plus étayée expérimentalement. Le
+remplacement de \texttt{all-MiniLM-L6-v2} par
+\texttt{paraphrase-multilingual-MiniLM-L12-v2}, entraîné sur plus de cinquante
+langues, devrait résoudre l'asymétrie linguistique documentée au
+chapitre~\ref{ch:evaluation}. L'opération impose une ré-indexation complète du
+corpus.
+
+\paragraph{Conduire la campagne RAGAS.}
+Une fois le modèle multilingue en place, la constitution d'un jeu de vingt
+questions annotées permettra d'établir une mesure de référence des quatre
+métriques, et surtout de comparer objectivement les configurations successives
+plutôt que de se fier à une impression d'usage.
+
+\paragraph{Mettre en place une recherche hybride.}
+La combinaison d'une composante lexicale exacte (BM25) et de la composante
+vectorielle, avec fusion des classements, lèverait la limite documentée sur la
+recherche par identifiant exact --- besoin fréquent sur un corpus transactionnel
+où l'utilisateur connaît souvent le numéro de la pièce qu'il cherche.
+
+\paragraph{Ajouter un ré-ordonnancement.}
+L'insertion d'un \eng{cross-encoder} après la recherche vectorielle, chargé de
+réévaluer finement la pertinence des extraits candidats, améliorerait la
+\eng{context precision} et permettrait d'établir enfin un seuil de rejet fiable.
+
+\paragraph{Enrichir le corpus de documents rédigés.}
+L'ajout de procédures, manuels et notes d'organisation permettrait d'exercer le
+système sur le type de questions pour lequel une architecture RAG est réellement
+supérieure aux alternatives, et redonnerait au réglage du découpage son rôle de
+levier d'optimisation.
+
+\paragraph{Réduire la latence.}
+Le passage sur GPU, l'emploi d'un modèle plus fortement quantifié ou plus petit,
+et la diffusion progressive de la réponse constituent trois leviers cumulables.
+
+\vspace{0.5cm}
+
+En définitive, ce stage a permis de mener un projet de science des données de la
+formulation du besoin jusqu'à un système déployé et mesurable, en abordant
+l'ensemble de la chaîne : ingénierie documentaire, recherche sémantique,
+ingénierie d'invite, évaluation de systèmes génératifs et déploiement
+conteneurisé. Au-delà des compétences techniques acquises, l'apport principal
+réside dans une conviction méthodologique : dans un système fondé sur un modèle
+génératif, la qualité perçue est un indicateur trompeur, et l'instrumentation de
+la mesure n'est pas une étape finale de validation mais la condition même du
+progrès.

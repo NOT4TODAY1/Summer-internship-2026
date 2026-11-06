@@ -28,8 +28,13 @@ Règles strictes :
 - Si la réponse ne se trouve pas dans le contexte, réponds explicitement : \
 "Je ne trouve pas cette information dans les documents disponibles."
 - Ne jamais inventer de faits, chiffres ou procédures qui ne sont pas dans le contexte.
-- Cite les documents sources utilisés (nom de fichier) à la fin de ta réponse.
-- Réponds de façon concise et professionnelle, en français, sauf si la question est posée en anglais.
+- Réponds d'abord directement, puis ajoute les détails indispensables pour comprendre la réponse.
+- Quand la question demande « tous/toutes », traite chaque document fourni dans le contexte et n'en omets aucun.
+- Vérifie que chaque élément demandé est présent avant de terminer la réponse.
+- Utilise une liste numérotée pour une procédure et un tableau simple pour comparer plusieurs éléments.
+- Signale clairement toute limite, ambiguïté ou information absente du contexte.
+- N'ajoute pas de section « Sources » : l'interface affiche les documents utilisés sous la réponse.
+- Réponds en français, sauf si la question est posée en anglais.
 
 Contexte :
 {context}
@@ -81,6 +86,7 @@ def answer_question(question: str, k: int | None = None) -> RAGResponse:
             "filename": d.metadata.get("filename"),
             "chunk_id": d.metadata.get("chunk_id"),
             "relevance_score": round(float(score), 3),
+            "excerpt": d.page_content[:500].strip(),
         }
         for d, score in scored_docs
     ]

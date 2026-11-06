@@ -1,0 +1,158 @@
+\chapter{Évaluation du modèle}
+
+\section{Introduction}
+Dans ce chapitre, nous présentons l'évaluation des deux modèles proposés pour la détection
+des textes générés par intelligence artificielle : un modèle LSTM (\textit{Long Short-Term Memory})
+et un modèle CNN (\textit{Convolutional Neural Network}). L'objectif est de mesurer les performances
+de chacun à l'aide de différentes métriques et d'analyser les résultats obtenus.
+
+\section{Métriques d'évaluation}
+
+Pour évaluer les performances des modèles, plusieurs métriques complémentaires sont utilisées.
+
+\textbf{L'accuracy} (précision globale) mesure la proportion de prédictions correctes parmi
+l'ensemble des prédictions réalisées :
+\[
+\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}
+\]
+
+\textbf{La précision} (\textit{Precision}) indique la proportion de textes correctement identifiés
+comme générés par IA parmi tous ceux prédits comme tels, permettant de mesurer le taux de faux positifs :
+\[
+\text{Precision} = \frac{TP}{TP + FP}
+\]
+
+\textbf{Le rappel} (\textit{Recall}) mesure la capacité du modèle à détecter l'ensemble des textes
+générés par IA présents dans le jeu de données :
+\[
+\text{Recall} = \frac{TP}{TP + FN}
+\]
+
+\textbf{Le F1-score} combine la précision et le rappel afin de fournir une mesure équilibrée des
+performances, particulièrement utile en cas de déséquilibre entre les classes :
+\[
+\text{F1-score} = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}
+\]
+
+où $TP$, $TN$, $FP$ et $FN$ désignent respectivement les vrais positifs, vrais négatifs,
+faux positifs et faux négatifs.
+
+\section{Résultats expérimentaux}
+
+Les deux modèles ont été entraînés sur 75\,000 exemples, validés sur 10\,000 exemples et
+évalués sur 15\,000 exemples. L'entraînement a été effectué sur 5 époques avec l'optimiseur
+Adam et la fonction de perte \textit{Binary Cross-Entropy} (\texttt{BCELoss}).
+
+\subsection{Résultats du modèle LSTM}
+
+Le modèle LSTM est composé d'une couche d'embedding, d'une couche LSTM unidirectionnelle,
+d'une couche de dropout ($p=0{,}5$) et d'une couche fully connected. Le tableau~\ref{tab:lstm_results}
+présente les résultats obtenus sur le jeu de test.
+
+\begin{table}[h]
+\centering
+\label{tab:lstm_results}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Classe} & \textbf{Précision} & \textbf{Rappel} & \textbf{F1-score} & \textbf{Support} \\
+\hline
+Humain (0)      & 0.95 & 0.97 & 0.96 & 7\,450 \\
+IA (1)          & 0.97 & 0.95 & 0.96 & 7\,550 \\
+\hline
+\textbf{Accuracy globale} & \multicolumn{4}{c}{\textbf{0.96}} \\
+\textbf{Macro avg}        & 0.96 & 0.96 & 0.96 & 15\,000 \\
+\textbf{Weighted avg}     & 0.96 & 0.96 & 0.96 & 15\,000 \\
+\hline
+\end{tabular}
+\caption{Rapport de classification -- Modèle LSTM}
+\end{table}
+
+La perte sur le jeu de test (\textit{Test Loss}) s'établit à \textbf{0.127}, et l'accuracy de test
+atteint \textbf{96\%}. La matrice de confusion du modèle LSTM est représentée à la
+figure~\ref{fig:lstm_confusion}.
+
+\subsection{Résultats du modèle CNN}
+
+Le modèle CNN est composé d'une couche d'embedding, de trois couches convolutionnelles 1D
+avec des filtres de tailles $\{3, 4, 5\}$ et de nombres de filtres $\{100, 200, 300\}$,
+d'une opération de max-pooling, d'une couche de dropout, et d'une couche fully connected.
+Le tableau~\ref{tab:cnn_results} présente les résultats obtenus.
+
+\begin{table}[h]
+\centering
+\label{tab:cnn_results}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Classe} & \textbf{Précision} & \textbf{Rappel} & \textbf{F1-score} & \textbf{Support} \\
+\hline
+Humain (0)      & 1.00 & 1.00 & 1.00 & 7\,450 \\
+IA (1)          & 1.00 & 1.00 & 1.00 & 7\,550 \\
+\hline
+\textbf{Accuracy globale} & \multicolumn{4}{c}{\textbf{0.998}} \\
+\textbf{Macro avg}        & 1.00 & 1.00 & 1.00 & 15\,000 \\
+\textbf{Weighted avg}     & 1.00 & 1.00 & 1.00 & 15\,000 \\
+\hline
+\end{tabular}
+\caption{Rapport de classification -- Modèle CNN}
+\end{table}
+
+La perte sur le jeu de test s'établit à \textbf{0.009}, et l'accuracy de test atteint
+\textbf{99{,}8\%}. La matrice de confusion du modèle CNN est représentée à la
+figure~\ref{fig:cnn_confusion}.
+
+\subsection{Comparaison des deux modèles}
+
+Le tableau~\ref{tab:comparison} synthétise les principales métriques des deux modèles.
+
+\begin{table}[h]
+\centering
+\label{tab:comparison}
+\begin{tabular}{lcc}
+\hline
+\textbf{Métrique}      & \textbf{LSTM} & \textbf{CNN} \\
+\hline
+Test Accuracy          & 96.0\%        & 99.8\%       \\
+Test Loss              & 0.127         & 0.009        \\
+F1-score moyen         & 0.96          & 1.00         \\
+Faux positifs          & Modéré        & Très faible  \\
+Faux négatifs          & Modéré        & Très faible  \\
+\hline
+\end{tabular}
+\caption{Comparaison des performances LSTM vs CNN}
+\end{table}
+
+\section{Analyse des résultats}
+
+\subsection{Analyse du modèle LSTM}
+
+Le modèle LSTM obtient une accuracy de \textbf{96\%} avec une perte de test de 0.127.
+Les métriques sont équilibrées entre les deux classes, ce qui indique l'absence de biais
+significatif. La matrice de confusion révèle légèrement plus de faux négatifs que de faux
+positifs, comportement acceptable dans un contexte académique où les faux positifs
+(accusations injustifiées) sont plus problématiques. La troncature à 512 tokens imposée
+par le tokeniseur BERT constitue la principale limite de ce modèle pour les textes longs.
+
+\subsection{Analyse du modèle CNN}
+
+Le modèle CNN atteint une accuracy de \textbf{99{,}8\%} avec une perte de test inférieure
+à 0.01, surpassant largement le LSTM. Cette performance s'explique par la capacité des
+filtres convolutionnels de tailles variées (3, 4 et 5 mots) à capturer les motifs
+stylistiques et lexicaux caractéristiques des textes générés par IA. La convergence dès
+la première époque confirme que ces motifs sont saillants et facilement détectables.
+Ces résultats sont néanmoins à nuancer : en conditions réelles, avec des textes plus
+variés ou issus de modèles de génération plus récents, les performances pourraient être
+inférieures.
+
+\subsection{Comparaison de deux modéles}
+
+Le CNN surpasse le LSTM pour trois raisons principales : la tâche repose davantage sur
+la reconnaissance de motifs locaux que sur la compréhension séquentielle globale ; le CNN
+converge plus rapidement ; et il est moins affecté par la troncature à 512 tokens, car il
+opère sur des fenêtres locales. 
+
+\section{Conclusion}
+
+Ce chapitre a comparé les performances du LSTM et du CNN pour la détection de textes
+générés par IA. Le CNN s'est révélé nettement supérieur (99{,}8\% contre 96\% d'accuracy,
+perte quatorze fois inférieure), confirmant l'adéquation des architectures convolutionnelles
+à cette tâche.

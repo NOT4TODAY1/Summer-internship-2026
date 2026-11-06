@@ -5,6 +5,7 @@ can be deployed and scaled independently.
 """
 import os
 from datetime import datetime
+from urllib.parse import quote
 
 import httpx
 import streamlit as st
@@ -88,6 +89,7 @@ st.markdown(
     .source-card.low { border-left-color: var(--warn); }
     .source-card .fname { color: var(--ink); font-weight: 500; }
     .source-card .meta { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; }
+    .source-card .excerpt { color: var(--muted); font-size: 0.8rem; line-height: 1.35; margin-top: 0.35rem; }
     .conf-bar-bg { background: var(--surface-alt); border-radius: 4px; height: 5px; margin-top: 0.35rem; overflow: hidden; }
     .conf-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); }
     .source-card.low .conf-bar-fill { background: var(--warn); }
@@ -120,12 +122,12 @@ def confidence_tier(score: float) -> str:
 
 
 def render_sources(sources: list) -> None:
-    """Render retrieved chunks as a small provenance ledger, sorted by relevance."""
+    """Render clickable retrieved chunks sorted by relevance."""
     if not sources:
         return
     ordered = sorted(sources, key=lambda s: s.get("relevance_score") or 0, reverse=True)
     with st.expander(f"📎 Sources ({len(ordered)})"):
-        for s in ordered:
+        for index, s in enumerate(ordered):
             score = s.get("relevance_score") or 0
             try:
                 pct = max(0.0, min(1.0, float(score))) * 100
@@ -133,16 +135,21 @@ def render_sources(sources: list) -> None:
             except (TypeError, ValueError):
                 pct, score_label = 0, "n/a"
             tier = confidence_tier(score)
+            filename = s.get("filename") or "document"
             st.markdown(
-                f"""
-                <div class="source-card {tier}">
-                    <span class="fname">{s.get('filename', 'document')}</span>
-                    &nbsp;·&nbsp;<span class="meta">{s.get('chunk_id', '')}</span>
-                    <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:{pct}%"></div></div>
-                    <span class="meta">pertinence {score_label}</span>
-                </div>
-                """,
+                f'<div class="source-card {tier}">'
+                f'<span class="fname">{filename}</span> · '
+                f'<span class="meta">{s.get("chunk_id", "")}</span>'
+                f'<div class="conf-bar-bg"><div class="conf-bar-fill" style="width:{pct}%"></div></div>'
+                f'<span class="meta">pertinence {score_label}</span>'
+                f'<div class="excerpt">{s.get("excerpt", "")}</div></div>',
                 unsafe_allow_html=True,
+            )
+            document_url = f"{API_URL}/documents/{quote(filename, safe='')}"
+            st.link_button(
+                f"📄 Ouvrir {filename}",
+                document_url,
+                use_container_width=True,
             )
 
 
@@ -205,8 +212,8 @@ with st.sidebar:
                 resp.raise_for_status()
                 result = resp.json()
                 st.success(
-                    f"Ingestion terminée — {result.get('documents_indexed', '?')} documents, "
-                    f"{result.get('chunks_created', '?')} chunks."
+                    f"Ingestion terminée — {result.get('documents_loaded', '?')} documents, "
+                    f"{result.get('chunks_indexed', '?')} chunks."
                 )
             except Exception as exc:
                 st.error(f"Échec de l'ingestion : {exc}")

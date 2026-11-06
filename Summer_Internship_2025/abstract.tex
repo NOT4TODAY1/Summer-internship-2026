@@ -1,0 +1,61 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+
+% Différentes options pour la classe :
+% - taille de la fonte    : 10pt, 11pt, 12pt
+% - recto ou recto-verso    : oneside, twoside
+% - stade de développement    : draft, final
+
+
+%\usepackage[english,francais]{babel}
+\usepackage[latin1]{inputenc}    % Pour utiliser les lettres accentuées
+
+\usepackage[T1]{fontenc}%              gestion des accents (PDF)
+\usepackage[francais,english]{babel}%          gestion du français
+\usepackage[french]{varioref}
+\usepackage{fancyhdr}
+
+
+%\usepackage{abstract}
+
+
+ % set fonts for nicer pdf view
+ \IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}
+
+
+\pagestyle{fancy}
+\fancyhead[L]{}
+\fancyhead[C]{}
+\fancyhead[R]{}
+
+
+\fancyfoot[L]{}
+%\fancyfoot[C]{\includegraphics[width=1\columnwidth]{istic_adresse_2.png}}
+\fancyfoot[C]{\small {Adresse du site: Route de Soliman, Technopole de Borj Cédria, Adresse postale : BP 123, Hammam Chatt 1164, Ben Arous, Tunisie - Téléphone: (216) 79 32 67 63 ; (216) 79 32 67 90 ; (216) 79 32 67 91 ; (216) 79 32 67 92 - Fax: (216) 79 32 67 64 - Site web: www.istic.rnu.tn}}
+\fancyfoot[R]{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.1pt}
+
+
+% Début du document
+\begin{document}
+
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\textbf{Résumé} \\
+\HRule  \\
+blabla blabla Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français Résumé en français blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla.
+
+\smallskip
+\textbf{Mots clés :} 
+ 
+\vskip2cm
+\textbf{Abstract} \\
+\HRule \\
+blabla blabla English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract English Abstract blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla blabla.
+
+\smallskip
+\textbf{Keywords:} 
+
+
+\end{document}

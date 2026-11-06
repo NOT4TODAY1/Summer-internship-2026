@@ -18,13 +18,25 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
+import types
 from pathlib import Path
 
 import pandas as pd
 from datasets import Dataset
 from langchain_ollama import ChatOllama
 from langchain_community.embeddings import HuggingFaceEmbeddings
+
+# RAGAS 0.4 still imports this class from an old langchain-community path.
+# The integration now lives in langchain-google-vertexai.
+from langchain_google_vertexai import ChatVertexAI
+
+vertexai_compat = types.ModuleType("langchain_community.chat_models.vertexai")
+vertexai_compat.ChatVertexAI = ChatVertexAI
+sys.modules.setdefault("langchain_community.chat_models.vertexai", vertexai_compat)
+
 from ragas import evaluate
+from ragas.run_config import RunConfig
 from ragas.metrics import (
     faithfulness,
     answer_relevancy,
@@ -71,13 +83,18 @@ def run_evaluation(testset_path: str, output_path: str = "docs/ragas_report.json
 
     # Judge LLM + embeddings for RAGAS's own metric computation (kept local via Ollama)
     judge_llm = ChatOllama(base_url=settings.ollama_base_url, model=settings.ollama_model, temperature=0)
-    judge_embeddings = HuggingFaceEmbeddings(model_name=settings.embedding_model)
+    # The test set is French, so use a multilingual judge embedding model.
+    # The retrieval embedding remains unchanged to avoid invalidating ChromaDB.
+    judge_embeddings = HuggingFaceEmbeddings(
+        model_name=settings.evaluation_embedding_model
+    )
 
     result = evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
         llm=judge_llm,
         embeddings=judge_embeddings,
+        run_config=RunConfig(timeout=600, max_workers=1, max_retries=2),
     )
 
     scores = result.to_pandas().mean(numeric_only=True).to_dict()

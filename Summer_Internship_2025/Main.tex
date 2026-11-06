@@ -1,0 +1,56 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage[francais]{babel}
+\usepackage{textcomp}
+\usepackage[pdftex]{graphicx}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage[french]{varioref}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{colortbl}
+\usepackage[most]{tcolorbox}
+\usepackage{amsmath}
+\usepackage{ifpdf}
+\usepackage{array}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{pdfpages} % ✅ Ajouté ici
+
+\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}
+
+\pagestyle{fancy}
+\fancyhead[L]{\nouppercase\leftmark}
+\fancyhead[C]{}
+\fancyhead[R]{\nouppercase\rightmark}
+\fancyfoot[L]{}
+\fancyfoot[C]{}
+\fancyfoot[R]{\textbf{\thepage}}
+
+\begin{document}
+
+% ✅ Version corrigée du fichier PDF avec guillemets :
+\includepdf[pages=-]{"page de garde.pdf"}
+%\include{form}
+
+\newpage
+\pagenumbering{roman}
+\include{Remerciements}
+\tableofcontents
+\listoffigures
+\listoftables
+\newpage
+\pagenumbering{arabic}
+\include{Introduction}
+\include{Chapitre1}
+\include{Chapitre2}
+\include{Chapitre3}
+\include{Chapitre4}
+\include{Chapitre5}
+\include{Chapitre6}
+\include{Conclusion}
+\pagestyle{empty}
+\include{Annexe1}
+
+\end{document}

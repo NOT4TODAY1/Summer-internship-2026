@@ -1,0 +1,78 @@
+% ============================================================
+%  Page de garde
+%  On evite l'environnement `titlepage` : il remet le compteur de
+%  page a 1, ce qui cree deux pages numerotees "i" et provoque des
+%  destinations PDF dupliquees.
+% ============================================================
+\thispagestyle{empty}
+\begingroup
+\centering
+
+\vspace*{0.6cm}
+
+{\large\scshape République Tunisienne\par}
+{\large\scshape Ministère de l'Enseignement Supérieur\par}
+{\large\scshape et de la Recherche Scientifique\par}
+
+\vspace{0.8cm}
+
+\rule{\textwidth}{1.2pt}
+\vspace{0.4cm}
+
+{\large\bfseries RAPPORT DE STAGE D'ÉTÉ\par}
+\vspace{0.2cm}
+{\normalsize Stage Data Science --- Durée : \internshipduration\par}
+
+\vspace{0.4cm}
+\rule{\textwidth}{1.2pt}
+
+\vspace{1.6cm}
+
+{\LARGE\bfseries\color{ink}
+\reporttitle
+\par}
+
+\vspace{0.8cm}
+
+{\large\itshape\color{muted}\reportsubtitle\par}
+
+\vspace{1.6cm}
+
+% --- Bandeau technique -------------------------------------
+\begin{tikzpicture}
+  \node[draw=accent,line width=1.2pt,rounded corners=4pt,
+        inner sep=10pt,text width=0.78\textwidth,align=center]
+  {\small\ttfamily
+   LangChain\ \ $\cdot$\ \ ChromaDB\ \ $\cdot$\ \ Ollama / Mistral 7B\\[2pt]
+   sentence-transformers\ \ $\cdot$\ \ RAGAS\\[2pt]
+   FastAPI\ \ $\cdot$\ \ Streamlit\ \ $\cdot$\ \ Docker};
+\end{tikzpicture}
+
+\vfill
+
+\begin{minipage}{0.9\textwidth}
+\centering
+\large
+\textbf{Réalisé par :}\quad \authorname
+
+\vspace{0.5cm}
+
+\textbf{Encadrante académique :}\quad \supervisor
+
+\vspace{0.5cm}
+
+\textbf{Organisme d'accueil :}\quad \organism
+\end{minipage}
+
+\vspace{1.4cm}
+
+{\large\bfseries SPÉCIALITÉ : \speciality\par}
+
+\vspace{0.5cm}
+
+{\large \academicyear\par}
+
+\vspace{1cm}
+
+\endgroup
+\clearpage

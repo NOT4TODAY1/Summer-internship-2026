@@ -1,4 +1,4 @@
 question,ground_truth
-"Quelle est la politique de congés payés de l'entreprise ?","Remplacez cette ligne par la réponse attendue, basée sur vos documents réels."
-"Comment soumettre une note de frais ?","Remplacez cette ligne par la réponse attendue, basée sur vos documents réels."
-"Quelle est la procédure d'intégration d'un nouvel employé ?","Remplacez cette ligne par la réponse attendue, basée sur vos documents réels."
+"Quels produits laitiers sont disponibles dans le rapport de stock de juillet 2016 ?","Le rapport contient Queso Cabrales, Queso Manchego La Pastora, Gorgonzola Telino, Mascarpone Fabioli, Geitost, Raclette Courdavault, Camembert Pierrot et Mozzarella di Giovanni."
+"Quels produits de la catégorie boissons sont présents dans le rapport de stock de décembre 2016 ?","La catégorie boissons contient Chai, Chang, Guaraná Fantástica, Sasquatch Ale, Steeleye Stout, Côte de Blaye, Chartreuse verte, Outback Lager et Lakkalikäri."
+"Quels produits ont un stock de 112 unités dans la catégorie des produits laitiers ?","Le produit qui possède un stock de 112 unités est Geitost."

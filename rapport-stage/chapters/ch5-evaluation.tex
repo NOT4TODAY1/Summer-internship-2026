@@ -1,0 +1,532 @@
+% ============================================================
+%  Chapitre 5 — Évaluation de la fiabilité du système
+% ============================================================
+\chapter{Évaluation de la fiabilité du système}
+\label{ch:evaluation}
+
+\section{Introduction}
+
+L'évaluation constitue la cinquième phase de CRISP-DM et, dans un projet RAG,
+la plus délicate. Un modèle de classification se juge à son \eng{accuracy} :
+on compare une classe prédite à une classe attendue. Un système génératif produit
+du texte libre, pour lequel il n'existe pas de comparaison exacte à une vérité de
+terrain --- deux formulations différentes peuvent être toutes deux correctes.
+
+Ce chapitre présente donc une évaluation à deux niveaux. Nous exposons d'abord
+les mesures \textbf{quantitatives de la composante de recherche}, obtenues
+expérimentalement, qui ont mis en évidence une limitation majeure du système et
+conduit à une préconisation étayée. Nous présentons ensuite le
+\textbf{protocole d'évaluation RAGAS} de la chaîne complète, ainsi que les
+métriques retenues et l'état d'avancement de cette mesure.
+
+\section{Évaluation de la recherche sémantique}
+
+\subsection{Protocole}
+
+La qualité de la recherche a été mesurée indépendamment de la génération. Cette
+séparation est méthodologiquement importante : si la recherche échoue à remonter
+le bon document, aucune qualité de génération ne peut compenser cette
+défaillance. Le contexte transmis au modèle sera erroné, et la réponse le sera
+également --- fût-elle parfaitement fidèle au contexte reçu.
+
+Sept questions ont été soumises au système, réparties en deux catégories : quatre
+portant sur des informations effectivement présentes dans le corpus, et trois
+portant sur des informations absentes (procédures RH, notes de frais,
+intégration des nouveaux employés). Pour chacune, nous avons relevé le score de
+pertinence maximal, le score minimal parmi les quatre extraits retournés, ainsi
+que la latence de recherche.
+
+\subsection{Résultats}
+
+Les mesures sont consignées au tableau~\ref{tab:retrieval}.
+
+\begin{table}[htbp]
+\centering
+\caption{Scores de pertinence mesurés sur l'index de 2\,929 segments}
+\label{tab:retrieval}
+\small
+\begin{tabular}{@{}p{6.6cm}ccc@{}}
+\toprule
+\textbf{Question} & \textbf{Score max} & \textbf{Score min} & \textbf{Latence} \\
+\midrule
+\multicolumn{4}{@{}l}{\itshape Informations présentes dans le corpus} \\
+Quels produits contient la commande 10248 ?      & 0,082 & 0,077 & 193 ms \\
+Quel est le montant total de la facture 10248 ?  & 0,115 & 0,099 & 160 ms \\
+Quelles boissons étaient en stock en juillet 2016 ? & 0,194 & 0,163 & 202 ms \\
+\texttt{purchase orders de Maria Larsson}        & 0,567 & 0,550 & 148 ms \\
+\midrule
+\multicolumn{4}{@{}l}{\itshape Informations absentes du corpus} \\
+Quelle est la politique de congés payés ?        & 0,046 & 0,027 & 263 ms \\
+Comment soumettre une note de frais ?            & 0,003 & $-0{,}022$ & 151 ms \\
+Quelle est la procédure d'intégration ?          & $-0{,}048$ & $-0{,}068$ & 158 ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=10cm,y=0.62cm]
+  \draw[->,muted] (-0.1,0) -- (0.62,0) node[below=4pt,font=\scriptsize] {Score de pertinence maximal};
+  \foreach \x/\label in {-0.1/{-0,10},0/{0},0.2/{0,20},0.4/{0,40},0.6/{0,60}} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\label};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (0.082,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (0.115,1.80);
+  \draw[accent,fill=accent!75] (0,2.45) rectangle (0.194,2.80);
+  \draw[accent,fill=accent!75] (0,3.45) rectangle (0.567,3.80);
+  \draw[warn,fill=warn!75] (0,4.45) rectangle (0.046,4.80);
+  \draw[warn,fill=warn!75] (0,5.45) rectangle (0.003,5.80);
+  \draw[warn,fill=warn!75] (-0.048,6.45) rectangle (0,6.80);
+  \foreach \y/\label in {
+    0.625/{Commande 10248},
+    1.625/{Facture 10248},
+    2.625/{Stock juillet},
+    3.625/{Maria Larsson},
+    4.625/{Congés payés},
+    5.625/{Note de frais},
+    6.625/{Intégration}
+  } {
+    \node[anchor=east,font=\scriptsize] at (-0.05,\y) {\label};
+  }
+  \node[anchor=west,font=\scriptsize] at (0.59,0.625) {0,082};
+  \node[anchor=west,font=\scriptsize] at (0.59,1.625) {0,115};
+  \node[anchor=west,font=\scriptsize] at (0.59,2.625) {0,194};
+  \node[anchor=west,font=\scriptsize] at (0.59,3.625) {0,567};
+  \node[anchor=west,font=\scriptsize] at (0.59,4.625) {0,046};
+  \node[anchor=west,font=\scriptsize] at (0.59,5.625) {0,003};
+  \node[anchor=west,font=\scriptsize] at (0.59,6.625) {-0,048};
+\end{tikzpicture}
+\caption{Scores maximaux de pertinence selon le type de question}
+\label{fig:scores-retrieval}
+\end{figure}
+
+Deux constats se dégagent immédiatement.
+
+Le premier est favorable : la \textbf{latence de recherche est très faible},
+182~ms en moyenne sur les sept requêtes. L'index HNSW de ChromaDB remplit
+parfaitement son office ; la recherche n'est en rien le goulot d'étranglement du
+système.
+
+Le second est préoccupant : les scores des questions \emph{présentes} dans le
+corpus sont anormalement bas. Trois des quatre questions légitimes obtiennent un
+score maximal inférieur à 0,20, à peine supérieur aux scores des questions
+\emph{hors corpus} qui, elles, oscillent autour de 0. Un écart aussi faible
+entre les deux catégories interdit tout seuillage fiable : aucune valeur de seuil
+ne permettrait de rejeter les questions hors corpus sans rejeter simultanément la
+majorité des questions légitimes.
+
+\subsection{Diagnostic : l'asymétrie linguistique}
+
+L'examen des documents effectivement retournés révèle l'origine du problème. La
+question « Quels produits contient la commande 10248 ? » remonte les fichiers
+\texttt{invoice\_10729.pdf} et \texttt{invoice\_10840.pdf} --- et non
+\texttt{invoice\_10248.pdf}. La seule requête à obtenir un score élevé (0,567)
+est aussi la seule formulée majoritairement en anglais.
+
+L'hypothèse est donc que le modèle \texttt{all-MiniLM-L6-v2}, entraîné
+essentiellement sur de l'anglais, projette mal les questions françaises dans
+l'espace sémantique des documents anglais. Pour la vérifier, une expérience
+contrôlée a été conduite : cinq questions ont été formulées deux fois, une fois
+en français et une fois en anglais, avec un contenu sémantique identique, puis
+soumises au \emph{même} index. Les résultats sont consignés au
+tableau~\ref{tab:langue}.
+
+\begin{table}[htbp]
+\centering
+\caption{Expérience contrôlée --- effet de la langue de la question sur le score
+de pertinence (index et corpus identiques)}
+\label{tab:langue}
+\small
+\begin{tabular}{@{}p{5.4cm}ccp{3.6cm}@{}}
+\toprule
+\textbf{Contenu de la question} & \textbf{Score FR} & \textbf{Score EN} &
+\textbf{Gain} \\
+\midrule
+Produits de la commande 10248        & 0,082 & 0,337 & $+0{,}255$ \\
+Montant total de la facture 10248    & 0,115 & 0,424 & $+0{,}309$ \\
+Boissons en stock en juillet 2016    & 0,194 & 0,629 & $+0{,}435$ \\
+Bons de commande de Maria Larsson    & 0,205 & 0,555 & $+0{,}350$ \\
+Produits commandés par Paul Henriot  & 0,169 & 0,359 & $+0{,}190$ \\
+\midrule
+\textbf{Moyenne}                     & \textbf{0,153} & \textbf{0,461} &
+\textbf{$+0{,}308$ ($\times 3{,}0$)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=8cm,y=0.62cm]
+  \draw[->,muted] (0,0) -- (0.72,0) node[below=4pt,font=\scriptsize] {Score moyen};
+  \foreach \x/\label in {0/{0},0.2/{0,20},0.4/{0,40},0.6/{0,60}} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\label};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (0.153,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (0.461,1.80);
+  \node[anchor=east,font=\scriptsize] at (-0.05,0.625) {Français};
+  \node[anchor=east,font=\scriptsize] at (-0.05,1.625) {Anglais};
+  \node[anchor=west,font=\scriptsize] at (0.475,0.625) {0,153};
+  \node[anchor=west,font=\scriptsize] at (0.475,1.625) {0,461};
+\end{tikzpicture}
+\caption{Comparaison des scores moyens selon la langue de la question}
+\label{fig:langue-scores}
+\end{figure}
+
+Le résultat est sans ambiguïté : à contenu sémantique constant, la simple
+traduction de la question en anglais \textbf{triple le score de pertinence}
+(0,461 contre 0,153 en moyenne). L'effet est également qualitatif : la question
+sur les boissons en stock, formulée en anglais, remonte correctement un rapport
+de stock (\texttt{StockReport\_2017-07\_1.pdf}) alors que sa version française
+remontait un bon de commande, document d'un type entièrement inadapté.
+
+\begin{encadre}
+\textbf{Conclusion du diagnostic.} La cause de la faiblesse des scores n'est ni
+le corpus, ni le découpage, ni le paramètre $k$, mais le \textbf{choix du modèle
+de vectorisation}. Un modèle monolingue anglais est structurellement inadapté à
+un usage où les questions sont posées en français sur des documents anglais.
+La préconisation qui en découle est de remplacer
+\texttt{all-MiniLM-L6-v2} par \texttt{paraphrase-multilingual-MiniLM-L12-v2},
+entraîné sur plus de cinquante langues et conçu précisément pour aligner les
+formulations translinguistiques dans un espace commun. Ce remplacement suppose
+une ré-indexation complète du corpus, le changement de modèle invalidant
+l'intégralité des vecteurs existants.
+\end{encadre}
+
+Ce résultat illustre l'intérêt de la démarche d'évaluation quantitative : la
+faiblesse identifiée n'était pas décelable à l'usage. Les réponses produites
+paraissaient acceptables ; seule la mesure des scores a révélé que le système
+s'appuyait fréquemment sur les mauvais documents.
+
+\subsection{Limite structurelle : la recherche sur identifiant exact}
+
+Une seconde limite, indépendante de la langue, est apparue lors de ces mesures.
+Même en anglais, une question portant sur un identifiant précis
+(« \texttt{order 10248} ») ne remonte pas systématiquement le document portant
+cet identifiant.
+
+Ce comportement est inhérent à la recherche vectorielle. Les
+\eng{embeddings} encodent le \emph{sens} d'un texte, non ses chaînes de
+caractères exactes. Or les identifiants numériques \texttt{10248},
+\texttt{10249} et \texttt{10729} sont sémantiquement quasi indiscernables : ce
+sont tous des numéros de commande dans un contexte identique. Leur proximité
+vectorielle est donc très élevée, et le classement entre eux devient
+essentiellement arbitraire.
+
+La solution reconnue pour ce type de besoin est la \textbf{recherche hybride},
+combinant une composante lexicale exacte (BM25) et la composante vectorielle,
+puis fusionnant les deux classements. La composante lexicale trouve
+\texttt{10248} de manière exacte ; la composante vectorielle apporte la
+compréhension du sens. Cette amélioration figure parmi les perspectives
+retenues en conclusion.
+
+\section{Évaluation de la chaîne complète : le protocole RAGAS}
+
+\subsection{Les quatre métriques retenues}
+
+L'évaluation de la chaîne complète repose sur le \eng{framework}
+\textbf{RAGAS} (\eng{Retrieval-Augmented Generation Assessment}), qui décompose
+la qualité d'un système RAG en dimensions mesurables séparément. Son principe
+est d'employer un modèle de langue comme \emph{juge} : il compare la réponse
+produite, le contexte récupéré et la réponse de référence. Quatre métriques ont
+été retenues.
+
+\paragraph{\eng{Faithfulness} (fidélité).}
+C'est la métrique centrale du projet : elle mesure directement le taux
+d'hallucination. La réponse est décomposée en affirmations élémentaires, et l'on
+vérifie combien d'entre elles sont effectivement soutenues par le contexte
+récupéré :
+\[
+  \text{Faithfulness} =
+  \frac{\lvert\text{affirmations soutenues par le contexte}\rvert}
+       {\lvert\text{affirmations totales de la réponse}\rvert}
+\]
+Un score de 1 signifie que rien n'a été inventé. Un score de 0,7 signifie que
+30~\% des affirmations produites ne figurent pas dans les documents --- c'est-à-dire
+sont des hallucinations.
+
+\paragraph{\eng{Answer relevancy} (pertinence de la réponse).}
+Elle mesure si la réponse adresse effectivement la question posée. Une réponse
+peut être parfaitement fidèle au contexte tout en étant hors sujet. La métrique
+procède par génération inverse : à partir de la réponse, le juge produit des
+questions plausibles, puis mesure leur similarité cosinus moyenne avec la
+question d'origine :
+\[
+  \text{Answer relevancy} =
+  \frac{1}{n}\sum_{i=1}^{n}\cos\!\left(E(q),\, E(q_i')\right)
+\]
+où $q$ est la question initiale et $q_i'$ les questions régénérées.
+
+\paragraph{\eng{Context precision} (précision du contexte).}
+Elle évalue la composante de recherche : parmi les segments récupérés, quelle
+proportion est réellement pertinente ? Elle pénalise le bruit --- les extraits
+hors sujet qui diluent le contexte et augmentent le risque que le modèle
+s'appuie sur un passage inadapté.
+
+\paragraph{\eng{Context recall} (rappel du contexte).}
+Elle évalue la complétude de la recherche : l'information nécessaire pour
+répondre a-t-elle été intégralement retrouvée ? C'est la seule des quatre
+métriques qui exige une réponse de référence rédigée par un humain, puisqu'il
+faut connaître l'information attendue pour juger si elle a été retrouvée.
+
+\vspace{0.3cm}
+
+Ces quatre métriques se répartissent naturellement en deux couples, comme
+l'indique le tableau~\ref{tab:metriques} : deux mesurent la
+\textbf{génération}, deux mesurent la \textbf{recherche}. Cette séparation est
+précieuse en pratique, car elle permet d'attribuer une défaillance au bon
+composant.
+
+\begin{table}[htbp]
+\centering
+\caption{Répartition des métriques RAGAS par composant évalué}
+\label{tab:metriques}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.7cm}p{2.5cm}X@{}}
+\toprule
+\textbf{Métrique} & \textbf{Composant} & \textbf{Ce qu'un score faible indique} \\
+\midrule
+\eng{Faithfulness} & Génération &
+Le modèle invente : revoir l'invite système ou abaisser la température \\
+\eng{Answer relevancy} & Génération &
+Le modèle répond à côté : reformuler l'invite \\
+\eng{Context precision} & Recherche &
+Trop de bruit récupéré : réduire $k$, ajouter un ré-ordonnancement \\
+\eng{Context recall} & Recherche &
+Information manquante : augmenter $k$, revoir le découpage ou le modèle
+d'\eng{embeddings} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Mise en œuvre}
+
+Conformément à la contrainte de confidentialité, le modèle juge est lui aussi
+exécuté localement : RAGAS est configuré pour utiliser le même Mistral 7B servi
+par Ollama, et le même modèle d'\eng{embeddings}, plutôt que l'API OpenAI
+qu'il emploie par défaut.
+
+\begin{lstlisting}[style=python,caption={Configuration de RAGAS avec un juge local (\texttt{src/evaluation/ragas\_eval.py})}]
+judge_llm = ChatOllama(
+    base_url=settings.ollama_base_url,
+    model=settings.ollama_model,
+    temperature=0,
+)
+judge_embeddings = HuggingFaceEmbeddings(model_name=settings.embedding_model)
+
+result = evaluate(
+    dataset,
+    metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
+    llm=judge_llm,
+    embeddings=judge_embeddings,
+)
+\end{lstlisting}
+
+Le jeu d'évaluation doit être fourni sous forme d'un fichier CSV à deux colonnes,
+\texttt{question} et \texttt{ground\_truth}, cette dernière contenant la réponse
+de référence rédigée par un relecteur humain. Le module exécute alors le pipeline
+complet sur chaque question, assemble le quadruplet
+\{question, réponse, contexte, référence\} attendu par RAGAS, puis calcule les
+quatre métriques et enregistre le rapport dans
+\texttt{docs/ragas\_report.json}.
+
+\begin{lstlisting}[style=bash,caption={Lancement de l'évaluation}]
+python -m src.evaluation.ragas_eval --testset data/eval/testset.csv
+\end{lstlisting}
+
+\subsection{État d'avancement et résultats}
+
+\begin{encadre}
+\textbf{Avertissement méthodologique.} Le module d'évaluation est développé et
+opérationnel, mais la campagne de mesure RAGAS \textbf{n'a pas encore été
+exécutée} à la date de rédaction de ce rapport. Deux prérequis restent à lever :
+l'installation des dépendances \texttt{ragas} et \texttt{datasets} dans
+l'environnement, et surtout la \textbf{constitution du jeu d'évaluation
+annoté} --- une vingtaine de questions accompagnées de leurs réponses de
+référence, rédigées manuellement à partir des documents du corpus. Le fichier
+\texttt{data/eval/testset.csv} ne contient à ce jour qu'un gabarit de trois
+questions non renseignées, dont le contenu porte de surcroît sur des documents
+absents du corpus (\emph{cf.} section~\ref{sec:limite-corpus}). Les valeurs du
+tableau~\ref{tab:ragas} sont donc laissées à compléter ; elles ne sont pas
+estimées, afin de ne pas présenter comme mesuré ce qui ne l'a pas été.
+\end{encadre}
+
+\begin{table}[htbp]
+\centering
+\caption{Résultats RAGAS --- à compléter après exécution de la campagne de mesure}
+\label{tab:ragas}
+\small
+\begin{tabular}{@{}lccp{4.3cm}@{}}
+\toprule
+\textbf{Métrique} & \textbf{Score obtenu} & \textbf{Cible} &
+\textbf{Interprétation} \\
+\midrule
+\eng{Faithfulness}      & \aremplir{à mesurer} & $> 0{,}90$ &
+Taux d'ancrage documentaire ; métrique critique \\
+\eng{Answer relevancy}  & \aremplir{à mesurer} & $> 0{,}80$ &
+Adéquation à la question posée \\
+\eng{Context precision} & \aremplir{à mesurer} & $> 0{,}70$ &
+Qualité du classement des extraits \\
+\eng{Context recall}    & \aremplir{à mesurer} & $> 0{,}70$ &
+Complétude de la recherche \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Les valeurs cibles indiquées correspondent aux seuils usuellement retenus dans
+la littérature pour un système RAG considéré comme exploitable en production. Le
+seuil le plus exigeant porte sur la \eng{faithfulness} : en contexte
+d'entreprise, une réponse sur dix contenant une affirmation inventée constitue
+déjà un niveau de risque difficilement acceptable.
+
+Compte tenu du diagnostic établi à la section précédente, une prévision peut
+néanmoins être formulée : les métriques de \emph{recherche}
+(\eng{context precision} et \eng{context recall}) seront vraisemblablement les
+plus faibles, puisque nous avons établi expérimentalement que la recherche
+remonte fréquemment des documents inadaptés lorsque la question est posée en
+français. La \eng{faithfulness} pourrait en revanche rester élevée : le modèle
+peut fort bien rester parfaitement fidèle à un contexte... qui n'est pas le bon.
+Ce cas de figure illustre précisément pourquoi une métrique unique serait
+trompeuse et pourquoi la décomposition en quatre dimensions est nécessaire.
+
+\section{Performance et latence}
+
+Le tableau~\ref{tab:perf} présente les mesures de performance relevées.
+
+\begin{table}[htbp]
+\centering
+\caption{Mesures de performance du système}
+\label{tab:perf}
+\small
+\begin{tabularx}{\textwidth}{@{}p{6.1cm}rX@{}}
+\toprule
+\textbf{Étape} & \textbf{Durée} & \textbf{Remarque} \\
+\midrule
+Recherche vectorielle (top-$k$ = 4) & 182 ms &
+Moyenne sur 7 requêtes ; négligeable \\
+Chargement du modèle d'\eng{embeddings} & environ 2 s &
+Une seule fois, mis en cache \\
+Génération de la réponse (CPU) & environ 110 s &
+Mesure relevée en conditions réelles \\
+Ingestion complète du corpus & plusieurs minutes &
+2\,929 segments, opération hors ligne \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=0.022cm,y=0.72cm]
+  \draw[->,muted] (0,0) -- (290,0) node[below=4pt,font=\scriptsize] {Latence (ms)};
+  \foreach \x in {0,50,100,150,200,250} {
+    \draw[muted] (\x,0.08) -- (\x,-0.08);
+    \node[below=9pt,font=\scriptsize] at (\x,0) {\x};
+  }
+  \draw[accent,fill=accent!75] (0,0.45) rectangle (193,0.80);
+  \draw[accent,fill=accent!75] (0,1.45) rectangle (160,1.80);
+  \draw[accent,fill=accent!75] (0,2.45) rectangle (202,2.80);
+  \draw[accent,fill=accent!75] (0,3.45) rectangle (148,3.80);
+  \draw[warn,fill=warn!75] (0,4.45) rectangle (263,4.80);
+  \draw[accent,fill=accent!75] (0,5.45) rectangle (151,5.80);
+  \draw[accent,fill=accent!75] (0,6.45) rectangle (158,6.80);
+  \foreach \y/\label in {
+    0.625/{Commande 10248},
+    1.625/{Facture 10248},
+    2.625/{Stock juillet},
+    3.625/{Maria Larsson},
+    4.625/{Congés payés},
+    5.625/{Note de frais},
+    6.625/{Intégration}
+  } {
+    \node[anchor=east,font=\scriptsize] at (-150,\y) {\label};
+  }
+  \node[anchor=west,font=\scriptsize] at (268,0.625) {193};
+  \node[anchor=west,font=\scriptsize] at (235,1.625) {160};
+  \node[anchor=west,font=\scriptsize] at (244,2.625) {202};
+  \node[anchor=west,font=\scriptsize] at (190,3.625) {148};
+  \node[anchor=west,font=\scriptsize] at (268,4.625) {263};
+  \node[anchor=west,font=\scriptsize] at (193,5.625) {151};
+  \node[anchor=west,font=\scriptsize] at (200,6.625) {158};
+\end{tikzpicture}
+\caption{Latence de recherche pour les sept requêtes évaluées}
+\label{fig:latence-recherche}
+\end{figure}
+
+Le déséquilibre est frappant : la recherche représente moins de 0,2~\% du temps
+de réponse total, la génération plus de 99~\%. L'inférence d'un modèle de
+7 milliards de paramètres sur CPU constitue l'unique goulot d'étranglement du
+système.
+
+Cette latence d'environ deux minutes est acceptable en démonstration mais
+excessive pour un usage quotidien. Trois leviers permettraient de la réduire :
+l'exécution sur GPU, qui apporterait typiquement un facteur dix ; le recours à un
+modèle plus fortement quantifié (\texttt{mistral:7b-instruct-q4}) ou plus petit
+(\texttt{phi-3}, \texttt{llama3.2:3b}) ; ou la diffusion progressive de la
+réponse (\eng{streaming}), qui n'améliore pas le temps total mais réduit
+considérablement la latence perçue en affichant les premiers mots dès leur
+génération.
+
+\section{Leviers anti-hallucination : bilan}
+
+Le tableau~\ref{tab:antihallu} récapitule les mécanismes mis en place contre
+l'hallucination et leur état.
+
+\begin{table}[htbp]
+\centering
+\caption{Leviers de réduction des hallucinations}
+\label{tab:antihallu}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.5cm}p{2.4cm}X@{}}
+\toprule
+\textbf{Levier} & \textbf{État} & \textbf{Commentaire} \\
+\midrule
+Invite système restrictive & Implémenté &
+Interdit explicitement de sortir du contexte et fournit une formulation
+d'ignorance prête à l'emploi \\
+Température basse (0,1) & Implémenté &
+Réduit la variabilité de génération et rend les réponses reproductibles \\
+Garde-fou sur contexte vide & Implémenté &
+Court-circuite le modèle si la recherche ne remonte rien \\
+Citation systématique des sources & Implémenté &
+Permet à l'utilisateur de vérifier chaque réponse ; levier le plus efficace en
+pratique \\
+Affichage des scores de pertinence & Implémenté &
+Signale visuellement à l'utilisateur un appui documentaire faible \\
+Seuil de score minimal & \aremplir{à implémenter} &
+Écarté à ce stade : le tableau~\ref{tab:retrieval} montre qu'aucun seuil n'est
+exploitable avant le passage à un modèle multilingue \\
+Ré-ordonnancement (\eng{re-ranking}) & \aremplir{à implémenter} &
+Un \eng{cross-encoder} améliorerait la \eng{context precision} \\
+Mesure RAGAS & \aremplir{à exécuter} &
+Le module est prêt ; le jeu annoté reste à constituer \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Il convient de relever que le levier le plus efficace n'est pas d'ordre
+algorithmique. C'est la \textbf{citation systématique des sources} : en exposant
+les extraits utilisés et leur score, le système transforme une réponse
+invérifiable en une affirmation contrôlable. Même si le modèle hallucine,
+l'utilisateur dispose des moyens de s'en apercevoir. Cette transparence par
+construction est, en contexte professionnel, plus précieuse qu'un gain marginal
+de fidélité.
+
+\section{Conclusion}
+
+Ce chapitre a présenté l'évaluation du système à deux niveaux. L'évaluation
+quantitative de la recherche a établi un résultat majeur : la latence de
+recherche est négligeable (182~ms), mais les scores de pertinence sont
+anormalement faibles sur des questions françaises. Une expérience contrôlée a
+identifié la cause --- l'asymétrie linguistique entre un modèle
+d'\eng{embeddings} anglophone et des questions françaises --- et l'a quantifiée :
+la traduction de la question en anglais triple le score de pertinence. Cette
+mesure fonde la préconisation d'adopter un modèle multilingue. Une seconde limite
+structurelle a été documentée : l'incapacité de la recherche vectorielle à
+retrouver un identifiant exact, qui appelle une recherche hybride.
+
+Le protocole d'évaluation RAGAS de la chaîne complète est développé et
+opérationnel, mais la campagne de mesure reste à conduire : elle requiert la
+constitution préalable d'un jeu de questions annotées. Les emplacements
+correspondants ont été laissés explicitement vacants plutôt que renseignés par
+estimation. Le chapitre suivant présente le déploiement du système.

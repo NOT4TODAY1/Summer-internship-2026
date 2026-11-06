@@ -1,0 +1,216 @@
+% ============================================================
+%  Chapitre 2 — Compréhension métier
+% ============================================================
+\chapter{Compréhension métier}
+\label{ch:metier}
+
+\section{Introduction}
+
+Ce chapitre formalise le besoin auquel le système doit répondre. Nous
+caractérisons d'abord la problématique de l'accès à l'information documentaire
+en entreprise, puis nous analysons les solutions existantes et leurs limites.
+Nous exposons enfin la solution proposée et les critères objectifs retenus pour
+juger de son succès.
+
+\section{Problématique}
+
+Une entreprise de taille moyenne accumule, sur quelques années d'activité,
+plusieurs dizaines de milliers de documents hétérogènes. Cette accumulation
+crée un paradoxe : l'information est présente et conservée, mais son coût
+d'accès la rend pratiquement inutilisable. Trois obstacles distincts se
+combinent.
+
+\subsection{Le fossé lexical}
+
+Les moteurs de recherche documentaires classiques reposent sur la
+correspondance de mots-clés. Une requête ne trouve un document que si les termes
+employés par l'utilisateur figurent littéralement dans ce document. Or les
+rédacteurs et les lecteurs n'emploient pas le même vocabulaire : une question
+portant sur les « congés » ne remontera pas une procédure intitulée « absences
+autorisées », et une recherche sur « fournisseur » ignorera un document parlant
+de « prestataire ». Ce phénomène, connu sous le nom de \emph{fossé lexical}
+(\eng{vocabulary mismatch}), constitue la limite structurelle de la recherche
+par mots-clés.
+
+\subsection{La charge de synthèse}
+
+Même lorsqu'un moteur classique retrouve les bons documents, il retourne une
+\emph{liste de documents}, non une \emph{réponse}. L'utilisateur doit encore
+ouvrir chaque résultat, localiser le passage utile et synthétiser mentalement.
+Pour une question dont la réponse est répartie sur plusieurs documents, ce
+travail est long et sujet à l'oubli.
+
+\subsection{L'hallucination des modèles génératifs}
+
+Le recours direct à un modèle de langue généraliste, tel que ChatGPT, semble
+apporter une réponse immédiate à ces deux obstacles : il comprend le langage
+naturel et produit une réponse rédigée. Deux difficultés majeures l'interdisent
+cependant en contexte professionnel.
+
+D'abord, le modèle \textbf{ne connaît pas les documents de l'entreprise}. Ils
+n'appartiennent pas à ses données d'entraînement, et ils ne le peuvent pas :
+transmettre des contrats, des factures ou des données salariales à un service
+tiers pose un problème de confidentialité et de conformité réglementaire
+(RGPD) rédhibitoire pour la plupart des organisations.
+
+Ensuite, et plus gravement, le modèle \textbf{hallucine}. Lorsqu'il ne dispose
+pas de l'information demandée, il ne répond pas « je ne sais pas » : il génère
+la suite de texte statistiquement la plus vraisemblable, c'est-à-dire une
+réponse plausible dans sa forme mais fausse dans son contenu. Un assistant
+interne qui inventerait un montant de facture, une date d'échéance contractuelle
+ou une étape de procédure de sécurité serait pire qu'inutile : il serait
+dangereux, d'autant que sa formulation assurée n'offre à l'utilisateur aucun
+signal d'alerte.
+
+\begin{encadre}
+\textbf{Formulation de la problématique.} Comment permettre à un collaborateur
+d'interroger en langage naturel l'ensemble des documents internes de son
+entreprise, en obtenant une réponse directe, \emph{vérifiable} et
+\emph{traçable}, sans que ces documents ne quittent l'infrastructure de
+l'organisation ?
+\end{encadre}
+
+\section{Étude de l'existant}
+
+Plusieurs familles de solutions adressent tout ou partie de cette
+problématique. Le tableau~\ref{tab:existant} en présente une analyse comparative.
+
+\begin{table}[htbp]
+\centering
+\caption{Analyse comparative des solutions existantes}
+\label{tab:existant}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.1cm}XX@{}}
+\toprule
+\textbf{Solution} & \textbf{Avantages} & \textbf{Inconvénients} \\
+\midrule
+
+Recherche plein texte (Elasticsearch, Solr) &
+Mature, très rapide, passe à l'échelle sur des millions de documents ; aucun
+coût d'inférence &
+Sensible au fossé lexical ; retourne des documents et non des réponses ;
+la charge de synthèse reste entièrement sur l'utilisateur \\
+
+\addlinespace
+LLM généraliste seul (ChatGPT, GPT-4o) &
+Excellente compréhension du langage naturel ; réponse directe et bien rédigée ;
+aucune infrastructure à maintenir &
+N'a aucune connaissance des documents internes ; hallucine sans le signaler ;
+envoi de données confidentielles à un tiers ; coût d'API récurrent \\
+
+\addlinespace
+Suites propriétaires (Microsoft 365 Copilot, Glean) &
+Intégration native à l'écosystème bureautique ; RAG déjà implémenté ;
+maintenance déléguée &
+Coût par utilisateur élevé ; suppose que les documents soient déjà hébergés chez
+l'éditeur ; fonctionnement opaque, métriques de fiabilité non exposées ;
+dépendance forte au fournisseur \\
+
+\addlinespace
+Assistants de base de connaissances (Notion AI, Confluence AI) &
+Simples d'usage ; bien intégrés à l'outil hôte &
+Limités aux documents de la plateforme ; ne couvrent pas les PDF et archives
+externes ; traçabilité des sources partielle \\
+
+\addlinespace
+\textbf{RAG sur mesure} (LangChain, ChromaDB, Ollama) &
+\textbf{Fonctionne entièrement en local} ; aucune donnée ne sort de
+l'infrastructure ; aucun coût d'API ; sources citées et vérifiables ; métriques
+de fiabilité mesurables ; contrôle total sur chaque composant &
+Nécessite un développement et une maintenance internes ; latence supérieure sur
+matériel sans GPU ; qualité dépendante du réglage du pipeline \\
+
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Cette analyse fait ressortir un constat : aucune solution du marché ne réunit
+simultanément la confidentialité totale, l'absence de coût récurrent et la
+traçabilité vérifiable des réponses. C'est cet espace que le projet vise à
+occuper.
+
+\section{Solution proposée}
+
+Nous proposons de construire un assistant documentaire interne fondé sur
+l'architecture \textbf{RAG} (\eng{Retrieval-Augmented Generation}), dont le
+principe est de découpler la \emph{connaissance} de la \emph{formulation}.
+
+La connaissance reste dans les documents de l'entreprise, indexés dans une base
+vectorielle locale. Lorsqu'une question est posée, le système commence par
+rechercher les passages documentaires les plus proches sémantiquement de cette
+question. Ces passages sont ensuite injectés dans l'invite envoyée au modèle de
+langue, accompagnés d'une consigne stricte : répondre uniquement à partir du
+contexte fourni, et déclarer explicitement son ignorance si la réponse ne s'y
+trouve pas. Le modèle n'est plus une source de connaissance, mais un moteur de
+reformulation contraint.
+
+Ce basculement change la nature du problème de l'hallucination. Le modèle ne
+peut plus inventer à partir de son savoir général, puisque l'invite lui interdit
+de sortir du contexte fourni ; et lorsqu'il le fait malgré tout, la présence des
+extraits sources permet à l'utilisateur de le détecter immédiatement.
+
+Les choix technologiques découlent directement de la contrainte de
+confidentialité :
+
+\begin{itemize}
+  \item \textbf{ChromaDB} comme base vectorielle, persistée sur disque local,
+        plutôt qu'un service géré comme Pinecone ;
+  \item \textbf{sentence-transformers} pour la vectorisation, exécuté en local
+        sur CPU, plutôt que l'API \texttt{text-embedding-ada-002} d'OpenAI ;
+  \item \textbf{Ollama} avec le modèle \textbf{Mistral 7B} pour la génération,
+        plutôt que GPT-4o ;
+  \item \textbf{LangChain} pour l'orchestration de la chaîne ;
+  \item \textbf{RAGAS} pour la mesure de la qualité et du taux d'hallucination.
+\end{itemize}
+
+Aucun de ces composants n'émet de requête vers un service externe en phase
+d'exploitation. L'ensemble de la chaîne, de l'ingestion à la génération,
+s'exécute sur la machine hôte.
+
+\section{Critères de succès}
+
+Conformément à la première phase de CRISP-DM, des critères objectifs ont été
+définis en amont pour juger de la réussite du projet. Ils sont présentés au
+tableau~\ref{tab:criteres} et repris au chapitre~\ref{ch:evaluation}.
+
+\begin{table}[htbp]
+\centering
+\caption{Critères de succès définis en phase de compréhension métier}
+\label{tab:criteres}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.2cm}Xp{2.9cm}@{}}
+\toprule
+\textbf{Critère} & \textbf{Description} & \textbf{Mesure} \\
+\midrule
+Ancrage documentaire &
+Toute affirmation de la réponse doit être soutenue par le contexte récupéré &
+\eng{Faithfulness} (RAGAS) \\
+Pertinence de la réponse &
+La réponse doit adresser la question effectivement posée &
+\eng{Answer relevancy} \\
+Qualité de la recherche &
+Les extraits récupérés doivent être pertinents et complets &
+\eng{Context precision} et \eng{recall} \\
+Traçabilité &
+Chaque réponse doit exposer ses documents sources et leur score &
+Vérification fonctionnelle \\
+Confidentialité &
+Aucune donnée ne doit quitter l'infrastructure &
+Audit des dépendances réseau \\
+Aveu d'ignorance &
+Le système doit refuser de répondre hors contexte &
+Test sur questions hors corpus \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conclusion}
+
+Ce chapitre a formalisé la problématique du projet en identifiant ses trois
+composantes : le fossé lexical qui limite la recherche par mots-clés, la charge
+de synthèse laissée à l'utilisateur, et le risque d'hallucination des modèles
+génératifs employés seuls. L'étude de l'existant a montré qu'aucune solution du
+marché ne concilie confidentialité, gratuité et traçabilité. La solution
+proposée --- une architecture RAG entièrement locale --- répond à ces trois
+exigences. Le chapitre suivant s'intéresse au corpus documentaire sur lequel ce
+système a été construit.

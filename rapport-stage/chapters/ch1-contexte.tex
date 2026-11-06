@@ -1,0 +1,195 @@
+% ============================================================
+%  Chapitre 1 — Contexte général
+% ============================================================
+\chapter{Contexte général}
+\label{ch:contexte}
+
+\section{Introduction}
+
+Ce chapitre situe le cadre dans lequel le projet a été réalisé. Nous présentons
+d'abord l'organisme d'accueil, sa vision et ses valeurs. Nous exposons ensuite la
+méthodologie de conduite de projet retenue --- CRISP-DM --- en détaillant ses
+six phases et en précisant la manière dont chacune s'applique à un projet de
+type RAG, qui présente la particularité de ne pas reposer sur l'entraînement
+d'un modèle mais sur l'assemblage et le réglage d'une chaîne de composants.
+
+\section{Présentation de l'organisme d'accueil}
+
+Créée en 2010, \organism{} est la structure dédiée à la Recherche, au
+Développement et à l'Innovation (RDI) au sein de l'école ESPRIT. Depuis la mise
+en place des programmes de formation, l'activité RDI est devenue l'une des
+priorités stratégiques de l'établissement.
+
+\organism{} regroupe des enseignants-chercheurs et offre un soutien complet en
+matière de financement, de formation et d'accompagnement dans les projets de
+recherche. La structure définit les stratégies de recherche en collaboration
+avec les différentes parties prenantes, en mettant particulièrement l'accent sur
+l'innovation et la recherche appliquée. C'est dans ce cadre que le présent
+projet a été mené, à l'intersection du traitement automatique du langage naturel
+et de l'ingénierie logicielle.
+
+\section{Cadre stratégique et valeurs de l'organisme}
+
+\organism{} a pour vision de promouvoir la recherche, l'innovation et la
+valorisation des résultats scientifiques. Elle s'engage à soutenir l'excellence
+en RDI à travers le développement de projets à fort impact, répondant aux
+besoins académiques et industriels.
+
+Sa mission consiste à créer un environnement propice à la recherche et à
+l'innovation, à renforcer le financement externe et à développer un écosystème
+entrepreneurial ouvert à l'international, favorisant la collaboration entre
+chercheurs et partenaires.
+
+Les valeurs de \organism{} reposent sur la rigueur scientifique, le respect,
+l'inclusion et la transparence. Cette exigence de transparence a d'ailleurs eu
+une traduction technique directe dans le présent projet : le système développé
+ne se contente pas de produire une réponse, il expose systématiquement les
+extraits documentaires sur lesquels cette réponse s'appuie, avec leur score de
+pertinence. L'utilisateur peut ainsi vérifier ce que le système avance plutôt
+que de devoir lui faire confiance.
+
+\section{Méthodologie CRISP-DM}
+
+CRISP-DM, ou \eng{Cross-Industry Standard Process for Data Mining}, est un modèle
+de processus qui permet d'orienter les travaux d'exploration de données en
+science des données. Cette méthodologie itérative permet de travailler en
+cycles : de la compréhension du besoin métier jusqu'au déploiement, en passant
+par la préparation des données, la modélisation et l'évaluation. Elle donne un
+cadre structuré pour guider le \eng{data scientist} tout au long du cycle de vie
+d'un projet.
+
+Son choix pour ce stage se justifie par deux caractéristiques. D'une part, son
+caractère \textbf{itératif} : dans un projet RAG, la qualité finale dépend de
+paramètres --- taille des segments, nombre de documents récupérés, formulation
+de l'invite --- dont la valeur optimale ne peut être déterminée
+\emph{a priori}. Il faut mesurer, ajuster, remesurer. D'autre part, la place
+centrale qu'elle accorde à la phase d'\textbf{évaluation} avant tout
+déploiement : c'est précisément le point critique d'un système génératif, dont
+la sortie est du texte en langage naturel et non une classe ou une valeur
+numérique aisément comparable à une vérité de terrain.
+
+\section{Les étapes de la méthodologie CRISP-DM}
+
+La méthodologie CRISP-DM se compose de six étapes clés.
+
+\subsection*{Étape 1 : la compréhension du besoin métier}
+
+Dans cette phase initiale, on travaille en collaboration avec les parties
+prenantes afin de comprendre les objectifs, les exigences et les contraintes du
+projet ainsi que les bénéfices attendus. Les ressources nécessaires --- budget,
+compétences techniques, accès aux données --- sont évaluées. Les problèmes à
+résoudre sont identifiés et les critères permettant de mesurer le succès du
+projet sont définis. Pour ce projet, cette étape a produit la contrainte
+structurante du « tout local » et le critère de succès central : la traçabilité
+de chaque réponse. Elle fait l'objet du chapitre~\ref{ch:metier}.
+
+\subsection*{Étape 2 : la compréhension des données}
+
+Il s'agit de collecter les données disponibles, d'en décrire la structure, d'en
+évaluer la qualité et d'identifier les premières tendances. Dans un projet RAG,
+cette étape porte sur le corpus documentaire : quels types de documents, quel
+volume, quelle qualité d'extraction textuelle, quelle structure interne. Elle
+détermine directement la stratégie de découpage adoptée ensuite.
+
+\subsection*{Étape 3 : la préparation des données}
+
+Phase généralement la plus coûteuse en temps, elle consiste à nettoyer,
+transformer et mettre en forme les données pour l'étape suivante. Ici, elle
+recouvre l'extraction du texte des fichiers PDF, l'enrichissement en métadonnées
+de traçabilité et le découpage en segments de taille compatible avec le modèle
+de vectorisation. Les étapes 2 et 3 constituent le chapitre~\ref{ch:donnees}.
+
+\subsection*{Étape 4 : la modélisation}
+
+On construit des modèles prédictifs ou descriptifs en fonction des objectifs du
+projet. Plusieurs itérations ont lieu entre les étapes de préparation et de
+modélisation pour affiner l'usage de certains algorithmes.
+
+Cette étape mérite une remarque particulière dans le cadre d'un projet RAG.
+Contrairement à un projet d'apprentissage supervisé classique, aucun modèle
+n'est ici \emph{entraîné} : le modèle de vectorisation et le modèle de langue
+sont tous deux pré-entraînés et utilisés en inférence. La « modélisation »
+consiste à \textbf{assembler et paramétrer une chaîne de traitement} :
+choix du modèle d'\eng{embeddings}, structure de l'index vectoriel, stratégie de
+recherche, formulation de l'invite système. Ce sont ces choix, et non des poids
+appris, qui déterminent la performance du système. C'est l'objet du
+chapitre~\ref{ch:modelisation}.
+
+\subsection*{Étape 5 : l'évaluation}
+
+Une fois les modèles construits, ils sont évalués afin de déterminer leur
+qualité. Cette étape permet de s'assurer que le système atteint les objectifs du
+projet. Les performances sont mesurées à l'aide de métriques appropriées et
+comparées aux critères de succès définis en première phase. Si les résultats ne
+répondent pas aux attentes, les étapes précédentes peuvent être révisées et
+répétées.
+
+Pour un système génératif, l'évaluation pose une difficulté propre : il n'existe
+pas de métrique unique comme l'\eng{accuracy}. Nous verrons au
+chapitre~\ref{ch:evaluation} comment le \eng{framework} RAGAS décompose la
+qualité d'un système RAG en quatre dimensions mesurables séparément, dont une
+--- la \eng{faithfulness} --- mesure directement le taux d'hallucination.
+
+\subsection*{Étape 6 : le déploiement}
+
+Enfin, les résultats du projet sont présentés aux parties prenantes et intégrés
+si nécessaire dans les systèmes existants pour aider à la prise de décision.
+Cette phase implique la création de rapports, de visualisations ou d'autres
+formes de communication rendant les résultats compréhensibles et utilisables par
+des non-spécialistes. Elle correspond au chapitre~\ref{ch:deploiement} : API
+REST, interface conversationnelle et conteneurisation.
+
+\vspace{0.5cm}
+
+La figure~\ref{fig:crispdm} illustre le caractère cyclique de ce processus.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=1.05cm and 1.5cm,
+  phase/.style={
+    draw=accent,line width=1pt,rounded corners=5pt,fill=soft,
+    text width=3.1cm,align=center,minimum height=1.05cm,font=\small\bfseries},
+  data/.style={
+    draw=ink,line width=1pt,circle,fill=white,
+    text width=1.7cm,align=center,font=\small\bfseries},
+  fl/.style={-{Stealth[length=2.6mm]},line width=0.9pt,color=muted}
+]
+
+\node[data] (data) {Données};
+
+\node[phase,above left=0.9cm and 0.55cm of data]  (bu) {Compréhension\\métier};
+\node[phase,above right=0.9cm and 0.55cm of data] (du) {Compréhension\\des données};
+\node[phase,right=2.05cm of data]                 (dp) {Préparation\\des données};
+\node[phase,below right=0.9cm and 0.55cm of data] (mo) {Modélisation};
+\node[phase,below left=0.9cm and 0.55cm of data]  (ev) {Évaluation};
+\node[phase,left=2.05cm of data]                  (de) {Déploiement};
+
+\draw[fl] (bu) -- (du);
+\draw[fl] (du) -- (dp);
+\draw[fl] (dp) -- (mo);
+\draw[fl] (mo) -- (ev);
+\draw[fl] (ev) -- (de);
+\draw[fl] (de) -- (bu);
+
+% aller-retours internes caractéristiques de CRISP-DM
+\draw[fl,dashed] (du) to[bend right=18] (bu);
+\draw[fl,dashed] (mo) to[bend left=18]  (dp);
+\draw[fl,dashed] (ev) to[bend left=22]  (bu);
+
+\end{tikzpicture}
+\caption{Le processus CRISP-DM et ses six phases itératives. Les flèches en
+pointillés représentent les retours en arrière fréquents, notamment entre
+modélisation et préparation des données.}
+\label{fig:crispdm}
+\end{figure}
+
+\section{Conclusion}
+
+Ce chapitre a présenté \organism{}, son rôle, sa vision et ses valeurs, ainsi
+que la méthodologie CRISP-DM retenue pour structurer le projet. Nous avons
+souligné les deux adaptations que requiert cette méthodologie dans un contexte
+RAG : la modélisation devient un travail d'assemblage et de paramétrage plutôt
+que d'entraînement, et l'évaluation exige des métriques spécifiques aux systèmes
+génératifs. Le chapitre suivant formalise la problématique métier à laquelle le
+système doit répondre.
